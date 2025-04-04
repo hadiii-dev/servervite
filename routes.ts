@@ -12,41 +12,41 @@ import { startJobSyncScheduler } from "./utils/jobSync";
 import { cleanHtmlText, decodeHtmlEntities } from "./utils/textUtils";
 
 // Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// const uploadsDir = path.join(process.cwd(), "uploads");
+// if (!fs.existsSync(uploadsDir)) {
+//   fs.mkdirSync(uploadsDir, { recursive: true });
+// }
 
 // Configure multer for file uploads
-const storage_config = multer.diskStorage({
-  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
-    const userDir = path.join(uploadsDir, "cvs");
-    if (!fs.existsSync(userDir)) {
-      fs.mkdirSync(userDir, { recursive: true });
-    }
-    cb(null, userDir);
-  },
-  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname);
-    cb(null, uniqueSuffix + ext);
-  }
-});
+// const storage_config = multer.diskStorage({
+//   destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+//     const userDir = path.join(uploadsDir, "cvs");
+//     if (!fs.existsSync(userDir)) {
+//       fs.mkdirSync(userDir, { recursive: true });
+//     }
+//     cb(null, userDir);
+//   },
+//   filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+//     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+//     const ext = path.extname(file.originalname);
+//     cb(null, uniqueSuffix + ext);
+//   }
+// });
 
-const upload = multer({
-  storage: storage_config,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
-  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
-    // Accept pdf, doc, docx, rtf
-    const allowedFileTypes = ['.pdf', '.doc', '.docx', '.rtf'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowedFileTypes.includes(ext)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, and RTF are allowed.'));
-    }
-  }
-});
+// const upload = multer({
+//   storage: storage_config,
+//   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+//   fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+//     // Accept pdf, doc, docx, rtf
+//     const allowedFileTypes = ['.pdf', '.doc', '.docx', '.rtf'];
+//     const ext = path.extname(file.originalname).toLowerCase();
+//     if (allowedFileTypes.includes(ext)) {
+//       cb(null, true);
+//     } else {
+//       cb(new Error('Invalid file type. Only PDF, DOC, DOCX, and RTF are allowed.'));
+//     }
+//   }
+// });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Check server health
@@ -181,17 +181,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // CV upload
-  app.post("/api/cv-upload", upload.single('cv'), async (req: Request, res: Response) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
-      }
+  // app.post("/api/cv-upload", upload.single('cv'), async (req: Request, res: Response) => {
+  //   try {
+  //     if (!req.file) {
+  //       return res.status(400).json({ error: "No file uploaded" });
+  //     }
       
-      res.json({ filePath: req.file.path });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to upload CV" });
-    }
-  });
+  //     res.json({ filePath: req.file.path });
+  //   } catch (error) {
+  //     res.status(500).json({ error: "Failed to upload CV" });
+  //   }
+  // });
 
   // Get occupations
   app.get("/api/occupations", async (req: Request, res: Response) => {
