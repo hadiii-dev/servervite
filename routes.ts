@@ -1,0 +1,506 @@
+import type { Express, Request, Response, NextFunction } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import multer, { FileFilterCallback } from "multer";
+import fs from "fs";
+import path from "path";
+import { z } from "zod";
+import { v4 as uuidv4 } from "uuid";
+import { insertUserSchema, insertAnonymousSessionSchema, insertSessionJobSchema, insertUserJobSchema, insertUserOccupationSchema } from "./schemas";
+import { getRecommendedJobs } from "./utils/jobMatcher";
+import { startJobSyncScheduler } from "./utils/jobSync";
+import { cleanHtmlText, decodeHtmlEntities } from "./utils/textUtils";
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Configure multer for file uploads
+const storage_config = multer.diskStorage({
+  destination: (req: Request, file: Express.Multer.File, cb: (error: Error | null, destination: string) => void) => {
+    const userDir = path.join(uploadsDir, "cvs");
+    if (!fs.existsSync(userDir)) {
+      fs.mkdirSync(userDir, { recursive: true });
+    }
+    cb(null, userDir);
+  },
+  filename: (req: Request, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname);
+    cb(null, uniqueSuffix + ext);
+  }
+});
+
+const upload = multer({
+  storage: storage_config,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+    // Accept pdf, doc, docx, rtf
+    const allowedFileTypes = ['.pdf', '.doc', '.docx', '.rtf'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedFileTypes.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, and RTF are allowed.'));
+    }
+  }
+});
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  // Check server health
+  app.get("/api/health", async (req: Request, res: Response) => {
+    res.json({ status: "ok" });
+  });
+
+  // Session management
+  app.post("/api/session", async (req: Request, res: Response) => {
+    try {
+      const sessionId = uuidv4();
+      const sessionData = insertAnonymousSessionSchema.parse({
+        sessionId,
+        preferences: {},
+        skills: [],
+        profileCompleted: false,
+        locationPermission: false
+      });
+      const session = await storage.createAnonymousSession(sessionData);
+      res.status(201).json({ sessionId: session.sessionId });
+    } catch (error) {
+      console.error("Error creating session:", error);
+      res.status(400).json({ error: "Failed to create session" });
+    }
+  });
+
+  // Get session data
+  app.get("/api/session/:sessionId", async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const session = await storage.getAnonymousSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      res.json(session);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get session data" });
+    }
+  });
+  
+  // Update session profile data
+  app.patch("/api/session/:sessionId", async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.params.sessionId;
+      const session = await storage.getAnonymousSession(sessionId);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      
+      // Validate and update the session
+      const updateSchema = z.object({
+        skills: z.array(z.string()).optional(),
+        professionalTitle: z.string().optional(),
+        yearsOfExperience: z.number().int().min(0).optional(),
+        profileCompleted: z.boolean().optional(),
+        preferences: z.record(z.unknown()).optional(),
+        // Añadimos campos nuevos para el perfil anónimo
+        workPreferences: z.object({
+          scheduleType: z.enum(['full_time', 'part_time', 'flexible']).optional(),
+          workMode: z.enum(['remote', 'hybrid', 'on_site']).optional(),
+          minSalary: z.number().optional(),
+          willingToTravel: z.boolean().optional()
+        }).optional(),
+        completedModals: z.array(z.string()).optional(),
+        nextModalToShow: z.string().optional(),
+        education: z.record(z.unknown()).optional(),
+        languages: z.record(z.unknown()).optional(),
+        hasUploadedCV: z.boolean().optional(),
+        cvPath: z.string().optional(),
+        photoPath: z.string().optional(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+        locationPermission: z.boolean().optional()
+      });
+      
+      const updateData = updateSchema.parse(req.body);
+      const updatedSession = await storage.updateAnonymousSession(sessionId, updateData);
+      
+      res.json(updatedSession);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error("Validation error in session update:", error.format());
+        return res.status(400).json({ error: "Invalid data format", details: error.format() });
+      }
+      console.error("Error updating session:", error);
+      res.status(500).json({ error: "Failed to update session data", message: error instanceof Error ? error.message : String(error) });
+    }
+  });
+
+  // User registration
+  app.post("/api/users", async (req: Request, res: Response) => {
+    try {
+      console.log("Recibiendo datos de registro:", JSON.stringify(req.body, null, 2));
+      const userData = insertUserSchema.parse(req.body);
+      console.log("Datos validados correctamente:", JSON.stringify(userData, null, 2));
+      const user = await storage.createUser(userData);
+      res.status(201).json({ id: user.id });
+    } catch (error) {
+      console.error("Error al crear usuario:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ 
+          error: "Datos de usuario inválidos", 
+          details: error.format() 
+        });
+      }
+      // Más detalles para errores de base de datos (como duplicados)
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      res.status(400).json({ 
+        error: "No se pudo crear el usuario", 
+        message: errorMessage 
+      });
+    }
+  });
+
+  // User login
+  app.post("/api/login", async (req: Request, res: Response) => {
+    try {
+      const { username, password } = z.object({
+        username: z.string(),
+        password: z.string()
+      }).parse(req.body);
+      
+      const user = await storage.getUserByUsername(username);
+      if (!user || user.password !== password) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      
+      res.json({ id: user.id, username: user.username });
+    } catch (error) {
+      res.status(400).json({ error: "Invalid login data" });
+    }
+  });
+
+  // CV upload
+  app.post("/api/cv-upload", upload.single('cv'), async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+      
+      res.json({ filePath: req.file.path });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to upload CV" });
+    }
+  });
+
+  // Get occupations
+  app.get("/api/occupations", async (req: Request, res: Response) => {
+    try {
+      const searchQuery = req.query.search as string | undefined;
+      const occupations = await storage.getOccupations(searchQuery);
+      res.json(occupations);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get occupations" });
+    }
+  });
+
+  // Save user occupation preferences
+  app.post("/api/user-occupations", async (req: Request, res: Response) => {
+    try {
+      const userOccupationData = insertUserOccupationSchema.parse(req.body);
+      const userOccupation = await storage.createUserOccupation(userOccupationData);
+      res.status(201).json(userOccupation);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid occupation preference data" });
+    }
+  });
+
+  // Get jobs
+  app.get("/api/jobs", async (req: Request, res: Response) => {
+    try {
+      const sessionId = req.query.sessionId as string;
+      const userId = req.query.userId ? parseInt(req.query.userId as string) : undefined;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+      const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+      const excludeIdsStr = req.query.excludeIds as string || '';
+      const excludeIds = excludeIdsStr ? excludeIdsStr.split(',').map(id => parseInt(id)) : [];
+      const orderBy = req.query.orderBy as string || 'recent';
+      
+      // Set up options for pagination, exclusion, and ordering
+      const options = { limit, offset, excludeIds, orderBy };
+      
+      let jobs;
+      if (userId) {
+        // User is logged in, get personalized recommendations with pagination
+        jobs = await getRecommendedJobs(userId, undefined, options);
+      } else if (sessionId) {
+        // Anonymous user with session, get recommendations based on session with pagination
+        jobs = await getRecommendedJobs(undefined, sessionId, options);
+      } else {
+        // New user, get jobs with pagination
+        jobs = await storage.getJobs(options);
+      }
+      
+      // Clean HTML from job descriptions and decode HTML entities in titles for any existing jobs
+      const cleanedJobs = jobs.map(job => ({
+        ...job,
+        title: job.title ? decodeHtmlEntities(job.title) : job.title,
+        company: job.company ? decodeHtmlEntities(job.company) : job.company,
+        location: job.location ? decodeHtmlEntities(job.location) : job.location,
+        description: job.description ? cleanHtmlText(job.description) : null
+      }));
+      
+      res.json(cleanedJobs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get jobs" });
+    }
+  });
+
+  // Get job by ID
+  app.get("/api/jobs/:id", async (req: Request, res: Response) => {
+    try {
+      const jobId = parseInt(req.params.id);
+      const job = await storage.getJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      // Clean HTML from job description and decode HTML entities in title, company, and location
+      const cleanedJob = {
+        ...job,
+        title: job.title ? decodeHtmlEntities(job.title) : job.title,
+        company: job.company ? decodeHtmlEntities(job.company) : job.company,
+        location: job.location ? decodeHtmlEntities(job.location) : job.location,
+        description: job.description ? cleanHtmlText(job.description) : null
+      };
+      
+      res.json(cleanedJob);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get job" });
+    }
+  });
+
+  // Record job action (like/dislike/apply) for a user
+  app.post("/api/user-jobs", async (req: Request, res: Response) => {
+    try {
+      const userJobData = insertUserJobSchema.parse(req.body);
+      const userJob = await storage.createUserJob(userJobData);
+      res.status(201).json(userJob);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid job action data" });
+    }
+  });
+
+  // Record job action for anonymous session
+  app.post("/api/session-jobs", async (req: Request, res: Response) => {
+    try {
+      const sessionJobData = insertSessionJobSchema.parse(req.body);
+      const sessionJob = await storage.createSessionJob(sessionJobData);
+      res.status(201).json(sessionJob);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid session job action data" });
+    }
+  });
+
+  // Get user saved jobs
+  app.get("/api/users/:userId/saved-jobs", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const savedJobs = await storage.getUserSavedJobs(userId);
+      
+      // Clean HTML from job descriptions and decode HTML entities in titles for saved jobs
+      const cleanedJobs = savedJobs.map(job => ({
+        ...job,
+        title: job.title ? decodeHtmlEntities(job.title) : job.title,
+        company: job.company ? decodeHtmlEntities(job.company) : job.company,
+        location: job.location ? decodeHtmlEntities(job.location) : job.location,
+        description: job.description ? cleanHtmlText(job.description) : null
+      }));
+      
+      res.json(cleanedJobs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get saved jobs" });
+    }
+  });
+
+  // Get user applied jobs
+  app.get("/api/users/:userId/applied-jobs", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const appliedJobs = await storage.getUserAppliedJobs(userId);
+      
+      // Clean HTML from job descriptions and decode HTML entities in titles for applied jobs
+      const cleanedJobs = appliedJobs.map(job => ({
+        ...job,
+        title: job.title ? decodeHtmlEntities(job.title) : job.title,
+        company: job.company ? decodeHtmlEntities(job.company) : job.company,
+        location: job.location ? decodeHtmlEntities(job.location) : job.location,
+        description: job.description ? cleanHtmlText(job.description) : null
+      }));
+      
+      res.json(cleanedJobs);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to get applied jobs" });
+    }
+  });
+  
+  // Get user profile data
+  app.get("/api/users/:userId/profile", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Get user occupations to enrich profile data
+      const userOccupations = await storage.getUserOccupationsByUserId(userId);
+      
+      // Format user profile data
+      const profile = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.fullName,
+        cvPath: user.cvPath,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        profileCompleted: Boolean(user.fullName && user.cvPath),
+        occupations: userOccupations,
+        // Additional profile fields from JSON fields
+        workPreferences: user.workPreferences || {},
+        education: user.education || {},
+        languages: user.languages || {},
+        skills: user.skills || []
+      };
+      
+      res.json(profile);
+    } catch (error) {
+      console.error("Error getting user profile:", error);
+      res.status(500).json({ error: "Failed to get user profile" });
+    }
+  });
+  
+  // Update user profile data
+  app.patch("/api/users/:userId/profile", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Validate update data
+      const updateSchema = z.object({
+        fullName: z.string().optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
+        cvPath: z.string().optional(),
+        latitude: z.number().optional(),
+        longitude: z.number().optional(),
+        workPreferences: z.record(z.unknown()).optional(),
+        education: z.record(z.unknown()).optional(),
+        languages: z.record(z.unknown()).optional(),
+        skills: z.array(z.string()).optional()
+      });
+      
+      const updateData = updateSchema.parse(req.body);
+      
+      // Update user in storage
+      const updatedUser = await storage.updateUser(userId, updateData);
+      
+      res.json({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        fullName: updatedUser.fullName,
+        cvPath: updatedUser.cvPath,
+        profileCompleted: Boolean(updatedUser.fullName && updatedUser.cvPath),
+        // Include additional updated fields
+        workPreferences: updatedUser.workPreferences || {},
+        education: updatedUser.education || {},
+        languages: updatedUser.languages || {},
+        skills: updatedUser.skills || []
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ error: "Invalid data format", details: error.format() });
+      }
+      console.error("Error updating user profile:", error);
+      res.status(500).json({ error: "Failed to update user profile" });
+    }
+  });
+
+  // Synchronize jobs from XML feed
+  app.post("/api/sync-jobs", async (req: Request, res: Response) => {
+    try {
+      // This would typically be a protected route in production
+      const xmlUrl = req.body.xmlUrl || "https://storage.googleapis.com/the-wise-seeker-production-integration/thewiseseeker-Wonderkind.com-f4c5fa75ab7e21d8dfaa7a690a075132074c45bc39ca39c49cb96b677e90d810.xml";
+      
+      // Import the syncJobsFromXML function only when needed
+      const { syncJobsFromXML } = await import("./utils/jobSync");
+      
+      // Execute the sync
+      const result = await syncJobsFromXML(xmlUrl);
+      console.log("🚀 ~ app.post ~ result:", result)
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error syncing jobs:", error);
+      res.status(500).json({ error: "Failed to sync jobs" });
+    }
+  });
+
+  // Import occupations from CSV
+  app.post("/api/import-occupations", async (req: Request, res: Response) => {
+    try {
+      const language = req.query.language as string || 'all';
+      const results = { es: 0, en: 0, total: 0 };
+      
+      // Import Spanish occupations if requested or if all languages
+      if (language === 'es' || language === 'all') {
+        const esPath = path.join(process.cwd(), "attached_assets", "occupations_es.csv");
+        if (fs.existsSync(esPath)) {
+          results.es = await storage.importOccupationsFromCSV(esPath);
+          console.log(`Imported ${results.es} Spanish occupations`);
+        } else {
+          console.warn("Spanish occupations file not found");
+        }
+      }
+      
+      // Import English occupations if requested or if all languages
+      if (language === 'en' || language === 'all') {
+        const enPath = path.join(process.cwd(), "attached_assets", "occupations_en.csv");
+        if (fs.existsSync(enPath)) {
+          results.en = await storage.importOccupationsFromCSV(enPath);
+          console.log(`Imported ${results.en} English occupations`);
+        } else {
+          console.warn("English occupations file not found");
+        }
+      }
+      
+      // Calculate total
+      results.total = results.es + results.en;
+      
+      res.json({ 
+        status: "ok", 
+        occupationsImported: results.total,
+        details: results
+      });
+    } catch (error) {
+      console.error("Failed to import occupations:", error);
+      res.status(500).json({ error: "Failed to import occupations" });
+    }
+  });
+
+  // Start the job sync scheduler to run in the background
+  startJobSyncScheduler();
+  
+  const httpServer = createServer(app);
+  return httpServer;
+}
