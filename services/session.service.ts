@@ -1,6 +1,13 @@
-import { InsertAnonymousSession, AnonymousSession, InsertSessionJob, SessionJob, SentimentType, Job } from '@shared/schema';
-import { storage } from '../storage';
-import { v4 as uuidv4 } from 'uuid';
+import {
+  InsertAnonymousSession,
+  AnonymousSession,
+  InsertSessionJob,
+  SessionJob,
+  SentimentType,
+  Job,
+} from "../schemas";
+import { storage } from "../storage";
+import { v4 as uuidv4 } from "uuid";
 
 export class SessionService {
   /**
@@ -17,9 +24,11 @@ export class SessionService {
    * @param sessionData Datos opcionales de la sesión
    * @returns Sesión creada
    */
-  async createSession(sessionData?: Partial<InsertAnonymousSession>): Promise<AnonymousSession> {
+  async createSession(
+    sessionData?: Partial<InsertAnonymousSession>
+  ): Promise<AnonymousSession> {
     const sessionId = uuidv4();
-    
+
     const session: InsertAnonymousSession = {
       sessionId,
       preferences: JSON.stringify({
@@ -29,9 +38,9 @@ export class SessionService {
         completedModals: [],
       }),
       // No incluimos createdAt ya que se genera automáticamente en la base de datos
-      ...sessionData
+      ...sessionData,
     };
-    
+
     return storage.createAnonymousSession(session);
   }
 
@@ -42,7 +51,7 @@ export class SessionService {
    * @returns Sesión actualizada o undefined si no existe
    */
   async updateSession(
-    sessionId: string, 
+    sessionId: string,
     sessionData: Partial<InsertAnonymousSession>
   ): Promise<AnonymousSession | undefined> {
     return storage.updateAnonymousSession(sessionId, sessionData);
@@ -55,29 +64,29 @@ export class SessionService {
    * @returns Sesión actualizada o undefined si no existe
    */
   async updatePreferences(
-    sessionId: string, 
+    sessionId: string,
     preferences: Record<string, any>
   ): Promise<AnonymousSession | undefined> {
     const session = await this.getSession(sessionId);
-    
+
     if (!session) {
       return undefined;
     }
-    
+
     // Parsear las preferencias actuales
-    const currentPreferences = session.preferences 
-      ? JSON.parse(session.preferences as string) 
+    const currentPreferences = session.preferences
+      ? JSON.parse(session.preferences as string)
       : {};
-    
+
     // Fusionar con las nuevas preferencias
     const updatedPreferences = {
       ...currentPreferences,
-      ...preferences
+      ...preferences,
     };
-    
+
     // Actualizar la sesión
     return this.updateSession(sessionId, {
-      preferences: JSON.stringify(updatedPreferences)
+      preferences: JSON.stringify(updatedPreferences),
     });
   }
 
@@ -90,18 +99,18 @@ export class SessionService {
    * @returns Registro de acción creado
    */
   async recordSessionJobAction(
-    sessionId: string, 
-    jobId: number, 
-    action: 'like' | 'dislike' | 'view', 
+    sessionId: string,
+    jobId: number,
+    action: "like" | "dislike" | "view",
     sentiment?: SentimentType
   ): Promise<SessionJob> {
     const sessionJobData: InsertSessionJob = {
       sessionId,
       jobId,
       action, // Usamos directamente la acción
-      sentiment: sentiment || null
+      sentiment: sentiment || null,
     };
-    
+
     return storage.createSessionJob(sessionJobData);
   }
 

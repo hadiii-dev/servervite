@@ -1,7 +1,12 @@
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
-import { JWT_SECRET, JWT_EXPIRES_IN, REFRESH_TOKEN_EXPIRES_IN, SALT_ROUNDS } from '../config';
-import { User } from '@shared/schema';
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+import {
+  JWT_SECRET,
+  JWT_EXPIRES_IN,
+  REFRESH_TOKEN_EXPIRES_IN,
+  SALT_ROUNDS,
+} from "../config";
+import { User } from "../schemas";
 
 // Definimos nuestra propia interfaz para los tokens JWT
 export interface JwtPayload {
@@ -28,7 +33,10 @@ export class AuthService {
    * @param hashedPassword Hash de contraseña almacenado
    * @returns boolean indicando si la contraseña es correcta
    */
-  async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+  async verifyPassword(
+    password: string,
+    hashedPassword: string
+  ): Promise<boolean> {
     return bcrypt.compare(password, hashedPassword);
   }
 
@@ -37,29 +45,31 @@ export class AuthService {
    * @param user Usuario para el que generar el token
    * @returns Token JWT generado
    */
-  generateToken(user: Partial<User>): string {
-    const payload = {
-      sub: user.id,
-      username: user.username,
-      // No incluir datos sensibles como contraseña o información personal
-    };
+  // generateToken(user: Partial<User>): string {
+  //   const payload = {
+  //     sub: user.id,
+  //     username: user.username,
+  //     // No incluir datos sensibles como contraseña o información personal
+  //   };
 
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
-  }
+  //   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  // }
 
   /**
    * Genera un refresh token para un usuario
    * @param user Usuario para el que generar el refresh token
    * @returns Refresh token generado
    */
-  generateRefreshToken(user: Partial<User>): string {
-    const payload = {
-      sub: user.id,
-      type: 'refresh'
-    };
+  // generateRefreshToken(user: Partial<User>): string {
+  //   const payload = {
+  //     sub: user.id,
+  //     type: "refresh",
+  //   };
 
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
-  }
+  //   return jwt.sign(payload, JWT_SECRET, {
+  //     expiresIn: REFRESH_TOKEN_EXPIRES_IN,
+  //   });
+  // }
 
   /**
    * Verifica un token JWT
@@ -69,27 +79,31 @@ export class AuthService {
   verifyToken(token: string): JwtPayload | null {
     try {
       const decoded = jwt.verify(token, JWT_SECRET);
-      if (decoded && typeof decoded === 'object') {
+      if (decoded && typeof decoded === "object") {
         // Aseguramos que 'sub' siempre esté presente
-        if (!('sub' in decoded)) {
-          console.error('Token sin campo sub', decoded);
+        if (!("sub" in decoded)) {
+          console.error("Token sin campo sub", decoded);
           return null;
         }
-        
+
         // Convertimos a nuestra interfaz JwtPayload
-        const sub = typeof decoded.sub === 'string' ? parseInt(decoded.sub, 10) : decoded.sub;
-        
+        const sub =
+          typeof decoded.sub === "string"
+            ? parseInt(decoded.sub, 10)
+            : decoded.sub;
+
         return {
           sub: isNaN(sub as number) ? decoded.sub : sub, // Aseguramos que sea número si es posible
-          type: 'type' in decoded ? (decoded.type as string) : undefined,
-          username: 'username' in decoded ? (decoded.username as string) : undefined,
-          iat: 'iat' in decoded ? (decoded.iat as number) : undefined,
-          exp: 'exp' in decoded ? (decoded.exp as number) : undefined
+          type: "type" in decoded ? (decoded.type as string) : undefined,
+          username:
+            "username" in decoded ? (decoded.username as string) : undefined,
+          iat: "iat" in decoded ? (decoded.iat as number) : undefined,
+          exp: "exp" in decoded ? (decoded.exp as number) : undefined,
         } as JwtPayload;
       }
       return null;
     } catch (error) {
-      console.error('Error al verificar token:', error);
+      console.error("Error al verificar token:", error);
       return null;
     }
   }
@@ -102,25 +116,31 @@ export class AuthService {
   verifyRefreshToken(refreshToken: string): JwtPayload | null {
     try {
       const decoded = jwt.verify(refreshToken, JWT_SECRET);
-      
+
       // Asegurarse de que es un refresh token y tiene 'sub'
-      if (decoded && typeof decoded === 'object' && 
-          'type' in decoded && decoded.type === 'refresh' &&
-          'sub' in decoded) {
-        
+      if (
+        decoded &&
+        typeof decoded === "object" &&
+        "type" in decoded &&
+        decoded.type === "refresh" &&
+        "sub" in decoded
+      ) {
         // Convertimos a nuestra interfaz JwtPayload
-        const sub = typeof decoded.sub === 'string' ? parseInt(decoded.sub, 10) : decoded.sub;
-        
+        const sub =
+          typeof decoded.sub === "string"
+            ? parseInt(decoded.sub, 10)
+            : decoded.sub;
+
         return {
           sub: isNaN(sub as number) ? decoded.sub : sub, // Aseguramos que sea número si es posible
-          type: 'refresh',
-          iat: 'iat' in decoded ? decoded.iat as number : undefined,
-          exp: 'exp' in decoded ? decoded.exp as number : undefined
+          type: "refresh",
+          iat: "iat" in decoded ? (decoded.iat as number) : undefined,
+          exp: "exp" in decoded ? (decoded.exp as number) : undefined,
         } as JwtPayload;
       }
       return null;
     } catch (error) {
-      console.error('Error al verificar refresh token:', error);
+      console.error("Error al verificar refresh token:", error);
       return null;
     }
   }

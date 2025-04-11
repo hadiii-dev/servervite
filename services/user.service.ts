@@ -1,6 +1,6 @@
-import { InsertUser, User, UserOccupation } from '@shared/schema';
-import { storage } from '../storage';
-import { authService } from './auth.service';
+import { InsertUser, User, UserOccupation } from "../schemas";
+import { storage } from "../storage";
+import { authService } from "./auth.service";
 
 export class UserService {
   /**
@@ -10,6 +10,15 @@ export class UserService {
    */
   async getUserById(id: number): Promise<User | undefined> {
     return storage.getUser(id);
+  }
+
+  /**
+   * Obtiene un usuario por su Firebase ID
+   * @param firebaseId Firebase ID del usuario
+   * @returns Usuario encontrado o undefined
+   */
+  async getUserByFirebaseId(firebaseId: string): Promise<User | undefined> {
+    return storage.getUserByFirebaseId(firebaseId);
   }
 
   /**
@@ -29,13 +38,13 @@ export class UserService {
   async createUser(userData: InsertUser & { password: string }): Promise<User> {
     // Hashear la contraseña antes de almacenarla
     const hashedPassword = await authService.hashPassword(userData.password);
-    
+
     // Crear usuario con contraseña hasheada
     const user = await storage.createUser({
       ...userData,
       password: hashedPassword,
     });
-    
+
     return user;
   }
 
@@ -50,7 +59,7 @@ export class UserService {
     if (userData.password) {
       userData.password = await authService.hashPassword(userData.password);
     }
-    
+
     return storage.updateUser(id, userData);
   }
 
@@ -60,24 +69,32 @@ export class UserService {
    * @param password Contraseña en texto plano
    * @returns Usuario si las credenciales son correctas, undefined si no
    */
-  async verifyCredentials(username: string, password: string): Promise<User | undefined> {
+  async verifyCredentials(
+    username: string,
+    password: string
+  ): Promise<User | undefined> {
     const user = await this.getUserByUsername(username);
-    
+
     if (!user || !user.password) {
       return undefined;
     }
-    
-    const isPasswordValid = await authService.verifyPassword(password, user.password);
-    
+
+    const isPasswordValid = await authService.verifyPassword(
+      password,
+      user.password
+    );
+
     return isPasswordValid ? user : undefined;
   }
-  
+
   /**
    * Obtiene las ocupaciones asociadas a un usuario
    * @param userId ID del usuario
    * @returns Lista de ocupaciones del usuario con nombres incluidos
    */
-  async getUserOccupations(userId: number): Promise<(UserOccupation & { occupationName?: string })[]> {
+  async getUserOccupations(
+    userId: number
+  ): Promise<(UserOccupation & { occupationName?: string })[]> {
     return storage.getUserOccupationsByUserId(userId);
   }
 }

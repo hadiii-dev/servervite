@@ -1,5 +1,11 @@
-import { InsertJob, Job, InsertUserJob, UserJob, SentimentType } from '@shared/schema';
-import { storage } from '../storage';
+import {
+  InsertJob,
+  Job,
+  InsertUserJob,
+  UserJob,
+  SentimentType,
+} from "../schemas";
+import { storage } from "../storage";
 
 export class JobService {
   /**
@@ -25,9 +31,9 @@ export class JobService {
    * @param options Opciones de consulta (límite, offset, ids a excluir)
    * @returns Lista de trabajos
    */
-  async getJobs(options?: { 
-    limit?: number; 
-    offset?: number; 
+  async getJobs(options?: {
+    limit?: number;
+    offset?: number;
     excludeIds?: number[];
   }): Promise<Job[]> {
     return storage.getJobs(options);
@@ -51,18 +57,18 @@ export class JobService {
    * @returns Registro de acción creado
    */
   async recordUserJobAction(
-    userId: number, 
-    jobId: number, 
-    action: 'save' | 'apply' | 'reject', 
+    userId: number,
+    jobId: number,
+    action: "save" | "apply" | "reject",
     sentiment?: SentimentType
   ): Promise<UserJob> {
     const userJobData: InsertUserJob = {
       userId,
       jobId,
       action, // Usamos directamente la acción en lugar de campos booleanos
-      sentiment: sentiment || null
+      sentiment: sentiment || null,
     };
-    
+
     return storage.createUserJob(userJobData);
   }
 

@@ -1,12 +1,12 @@
-import { storage } from '../storage';
-import fs from 'fs';
-import { parse } from 'csv-parse';
-import { 
-  Occupation, 
-  InsertOccupation, 
-  UserOccupation, 
-  InsertUserOccupation 
-} from '@shared/schema';
+import { storage } from "../storage";
+import fs from "fs";
+import { parse } from "csv-parse";
+import {
+  Occupation,
+  InsertOccupation,
+  UserOccupation,
+  InsertUserOccupation,
+} from "../schemas";
 
 /**
  * Servicio para manejar operaciones relacionadas con ocupaciones
@@ -35,7 +35,9 @@ export class OccupationService {
    * @param occupationData Datos de la ocupación a crear
    * @returns Ocupación creada
    */
-  async createOccupation(occupationData: InsertOccupation): Promise<Occupation> {
+  async createOccupation(
+    occupationData: InsertOccupation
+  ): Promise<Occupation> {
     return storage.createOccupation(occupationData);
   }
 
@@ -45,7 +47,10 @@ export class OccupationService {
    * @param language Código de idioma (opcional)
    * @returns Número de ocupaciones importadas
    */
-  async importOccupationsFromCSV(filePath: string, language?: string): Promise<number> {
+  async importOccupationsFromCSV(
+    filePath: string,
+    language?: string
+  ): Promise<number> {
     if (!fs.existsSync(filePath)) {
       throw new Error(`Archivo no encontrado: ${filePath}`);
     }
@@ -67,7 +72,9 @@ export class OccupationService {
    * @param userId ID del usuario
    * @returns Lista de ocupaciones del usuario con nombres incluidos
    */
-  async getUserOccupations(userId: number): Promise<(UserOccupation & { occupationName?: string })[]> {
+  async getUserOccupations(
+    userId: number
+  ): Promise<(UserOccupation & { occupationName?: string })[]> {
     return storage.getUserOccupationsByUserId(userId);
   }
 
@@ -76,7 +83,9 @@ export class OccupationService {
    * @param userOccupationData Datos de la relación a crear
    * @returns Relación creada
    */
-  async createUserOccupation(userOccupationData: InsertUserOccupation): Promise<UserOccupation> {
+  async createUserOccupation(
+    userOccupationData: InsertUserOccupation
+  ): Promise<UserOccupation> {
     return storage.createUserOccupation(userOccupationData);
   }
 }

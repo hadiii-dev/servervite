@@ -1,0 +1,88 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "johndoe",
+      "password": "hashed_password_123",
+      "email": "john.doe@example.com",
+      "phone": "+1234567890",
+      "fullName": "John Doe",
+      "cvPath": "/uploads/cv/john_doe_cv.pdf",
+      "latitude": 40.7128,
+      "longitude": -74.006,
+      "firebaseId": "firebase_user_123",
+      "firebaseToken": "firebase_token_123",
+      "workPreferences": {
+        "jobType": ["full-time", "remote"],
+        "salaryRange": "50000-70000",
+        "location": "New York, NY",
+        "industries": ["Technology", "Finance"]
+      },
+      "education": [
+        {
+          "degree": "Bachelor of Science",
+          "field": "Computer Science",
+          "institution": "New York University",
+          "graduationYear": 2020
+        }
+      ],
+      "languages": [
+        {
+          "language": "English",
+          "proficiency": "Native"
+        },
+        {
+          "language": "Spanish",
+          "proficiency": "Intermediate"
+        }
+      ],
+      "skills": ["JavaScript", "React", "Node.js", "TypeScript", "SQL"],
+      "createdAt": "2024-03-15T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "username": "janedoe",
+      "password": "hashed_password_456",
+      "email": "jane.doe@example.com",
+      "phone": "+1987654321",
+      "fullName": "Jane Doe",
+      "cvPath": "/uploads/cv/jane_doe_cv.pdf",
+      "latitude": 37.7749,
+      "longitude": -122.4194,
+      "firebaseId": "firebase_user_456",
+      "firebaseToken": "firebase_token_456",
+      "workPreferences": {
+        "jobType": ["part-time", "hybrid"],
+        "salaryRange": "40000-60000",
+        "location": "San Francisco, CA",
+        "industries": ["Marketing", "E-commerce"]
+      },
+      "education": [
+        {
+          "degree": "Master of Business Administration",
+          "field": "Marketing",
+          "institution": "Stanford University",
+          "graduationYear": 2021
+        }
+      ],
+      "languages": [
+        {
+          "language": "English",
+          "proficiency": "Native"
+        },
+        {
+          "language": "French",
+          "proficiency": "Advanced"
+        }
+      ],
+      "skills": [
+        "Digital Marketing",
+        "SEO",
+        "Content Strategy",
+        "Social Media",
+        "Analytics"
+      ],
+      "createdAt": "2024-03-14T15:30:00Z"
+    }
+  ]
+}

@@ -1,12 +1,16 @@
-import { Request, Response, NextFunction } from 'express';
-import { userService } from '../services/user.service';
-import { z } from 'zod';
-import { insertUserSchema } from '@shared/schema';
+import { Request, Response, NextFunction } from "express";
+import { userService } from "../services/user.service";
+import { z } from "zod";
+import { insertUserSchema } from "../schemas";
 
 /**
  * Controlador para obtener un usuario por ID
  */
-export const getUserById = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
@@ -29,7 +33,11 @@ export const getUserById = async (req: Request, res: Response, next: NextFunctio
 /**
  * Controlador para obtener el perfil de un usuario
  */
-export const getUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
@@ -53,7 +61,7 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
       workPreferences: user.workPreferences || {},
       education: user.education || {},
       languages: user.languages || {},
-      skills: user.skills || []
+      skills: user.skills || [],
     });
   } catch (error) {
     next(error);
@@ -63,7 +71,11 @@ export const getUserProfile = async (req: Request, res: Response, next: NextFunc
 /**
  * Controlador para actualizar el perfil de un usuario
  */
-export const updateUserProfile = async (req: Request, res: Response, next: NextFunction) => {
+export const updateUserProfile = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const userId = parseInt(req.params.userId);
     if (isNaN(userId)) {
@@ -81,14 +93,14 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       workPreferences: z.record(z.unknown()).optional(),
       education: z.record(z.unknown()).optional(),
       languages: z.record(z.unknown()).optional(),
-      skills: z.array(z.string()).optional()
+      skills: z.array(z.string()).optional(),
     });
-    
+
     const updateData = updateSchema.parse(req.body);
-    
+
     // Update user in storage
     const updatedUser = await userService.updateUser(userId, updateData);
-    
+
     // No enviar la contraseña al cliente
     const { password, ...userWithoutPassword } = updatedUser;
     res.json({
@@ -97,7 +109,7 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
       workPreferences: updatedUser.workPreferences || {},
       education: updatedUser.education || {},
       languages: updatedUser.languages || {},
-      skills: updatedUser.skills || []
+      skills: updatedUser.skills || [],
     });
   } catch (error) {
     next(error);
@@ -107,20 +119,30 @@ export const updateUserProfile = async (req: Request, res: Response, next: NextF
 /**
  * Controlador para crear un nuevo usuario
  */
-export const createUser = async (req: Request, res: Response, next: NextFunction) => {
+export const createUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const userData = insertUserSchema.extend({
-      password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres")
-    }).parse(req.body);
+    const userData = insertUserSchema
+      .extend({
+        password: z
+          .string()
+          .min(6, "La contraseña debe tener al menos 6 caracteres"),
+      })
+      .parse(req.body);
 
     // Verificar si el usuario ya existe
     const existingUser = await userService.getUserByUsername(userData.username);
     if (existingUser) {
-      return res.status(409).json({ error: "El nombre de usuario ya está en uso" });
+      return res
+        .status(409)
+        .json({ error: "El nombre de usuario ya está en uso" });
     }
 
     const user = await userService.createUser(userData);
-    
+
     // No enviar la contraseña al cliente
     const { password, ...userWithoutPassword } = user;
     res.status(201).json(userWithoutPassword);
