@@ -17,7 +17,7 @@ export const users = pgTable(
   "users",
   {
     id: serial("id").primaryKey(),
-    username: text("username").notNull().unique(),
+    username: text("username").notNull(),
     password: text("password").notNull(),
     email: text("email").notNull().unique(),
     phone: text("phone"),
@@ -33,6 +33,7 @@ export const users = pgTable(
     education: json("education"),
     languages: json("languages"),
     skills: text("skills").array(),
+    savedJobs: json("saved_jobs").array(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => {

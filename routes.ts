@@ -12,6 +12,7 @@ import {
   insertSessionJobSchema,
   insertUserJobSchema,
   insertUserOccupationSchema,
+  User,
 } from "./schemas";
 import { getRecommendedJobs } from "./utils/jobMatcher";
 import { startJobSyncScheduler } from "./utils/jobSync";
@@ -61,6 +62,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ status: "ok" });
   });
 
+  // Get all users
+  app.get("/api/users", async (req: Request, res: Response) => {
+    try {
+      const users = await storage.getUsers();
+      
+      // Format user data to exclude sensitive information
+      // const formattedUsers = users.map((user: User) => ({
+      //   id: user.id,
+      //   username: user.username,
+      //   email: user.email,
+      //   fullName: user.fullName,
+      //   phone: user.phone,
+      //   skills: user.skills || [],
+      //   createdAt: user.createdAt
+      // }));
+      
+      res.json(users);
+    } catch (error) {
+      console.error("Error retrieving users:", error);
+      res.status(500).json({ error: "Failed to retrieve users" });
+    }
+  });
+
+  // Get user by ID
+  app.get("/api/users/:userId", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      // Format user data to exclude sensitive information
+      const formattedUser = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        phone: user.phone,
+        skills: user.skills || [],
+        createdAt: user.createdAt
+      };
+      
+      res.json(formattedUser);
+    } catch (error) {
+      console.error("Error retrieving user:", error);
+      res.status(500).json({ error: "Failed to retrieve user" });
+    }
+  });
   // Session management
   app.post("/api/session", async (req: Request, res: Response) => {
     try {
@@ -396,17 +447,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Get user profile data
-  app.get("/api/users/:userId/profile", async (req: Request, res: Response) => {
+  app.get("/api/users/:firebaseId/profile", async (req: Request, res: Response) => {
     try {
-      const userId = parseInt(req.params.userId);
-      const user = await storage.getUser(userId);
+      const firebaseId = req.params.firebaseId;
+      const user = await storage.getUserByFirebaseId(firebaseId);
 
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
 
       // Get user occupations to enrich profile data
-      const userOccupations = await storage.getUserOccupationsByUserId(userId);
+      const userOccupations = await storage.getUserOccupationsByUserId(user.id);
 
       // Format user profile data
       const profile = {
@@ -436,11 +487,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update user profile data
   app.patch(
-    "/api/users/:userId/profile",
+    "/api/users/:firebaseId/profile",
     async (req: Request, res: Response) => {
       try {
-        const userId = parseInt(req.params.userId);
-        const user = await storage.getUser(userId);
+        const firebaseId = req.params.firebaseId;
+        const user = await storage.getUserByFirebaseId(firebaseId);
 
         if (!user) {
           return res.status(404).json({ error: "User not found" });
@@ -458,12 +509,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           education: z.record(z.unknown()).optional(),
           languages: z.record(z.unknown()).optional(),
           skills: z.array(z.string()).optional(),
+          firebaseId: z.string(),
+          firebaseToken: z.string(),
         });
 
         const updateData = updateSchema.parse(req.body);
 
         // Update user in storage
-        const updatedUser = await storage.updateUser(userId, updateData);
+        const updatedUser = await storage.updateUser(user.id, updateData);
 
         res.json({
           id: updatedUser.id,
@@ -473,6 +526,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fullName: updatedUser.fullName,
           cvPath: updatedUser.cvPath,
           profileCompleted: Boolean(updatedUser.fullName && updatedUser.cvPath),
+          firebaseId: updatedUser.firebaseId,
+          firebaseToken: updatedUser.firebaseToken,
           // Include additional updated fields
           workPreferences: updatedUser.workPreferences || {},
           education: updatedUser.education || {},
@@ -513,7 +568,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   app.post("/register", authController.register);
-
+  app.get("/api/users/:id", authController.getProfile);
   // Import occupations from CSV
   app.post("/api/import-occupations", async (req: Request, res: Response) => {
     try {

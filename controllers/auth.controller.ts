@@ -32,39 +32,14 @@ export const register = async (
     // Validar datos de entrada con el schema
     const validatedData = insertUserSchema.parse(req.body);
 
-    // Verificar si el usuario ya existe
-    // const existingUser = await userService.getUserByUsername(
-    //   validatedData.username
-    // );
-
-    // if (existingUser) {
-    //   throw new ValidationError("El nombre de usuario ya está en uso");
-    // }
-
-    // Si se proporciona Firebase ID, verificar que no esté en uso
-    if (validatedData.firebaseId) {
-      const existingFirebaseUser = await userService.getUserByFirebaseId(
-        validatedData.firebaseId
-      );
-      if (existingFirebaseUser) {
-        throw new ValidationError("El ID de Firebase ya está en uso");
-      }
-    }
-
     // Crear el usuario (userService se encarga de hashear la contraseña)
     const user = await userService.createUser(validatedData);
-
-    // Generar tokens
-    // const token = authService.generateToken(user);
-    // const refreshToken = authService.generateRefreshToken(user);
 
     // Devolver respuesta sin incluir la contraseña
     const { password, ...userWithoutPassword } = user;
 
     res.status(201).json({
       user: userWithoutPassword,
-      // token,
-      //  refreshToken,
     });
   } catch (error) {
     // Pasar el error al middleware de errores
@@ -161,16 +136,25 @@ export const getProfile = async (
   next: NextFunction
 ) => {
   try {
-    // req.user es agregado por el middleware de autenticación
-    if (!req.user) {
-      throw new UnauthorizedError();
+    // Obtener el usuario desde la base de datos
+    const userId = req.params.id;
+    
+    if (!userId) {
+      return res.status(400).json({ error: "Se requiere ID de usuario" });
+    }
+
+    const user = await userService.getUserById(Number(userId));
+
+    if (!user) {
+      return res.status(404).json({ error: "Usuario no encontrado" });
     }
 
     // Devolver usuario sin contraseña
-    //@ts-ignore
-    const { password, ...userWithoutPassword } = req.user;
+    const { password, ...userWithoutPassword } = user;
 
+    // Devolver el usuario completo sin procesar los campos
     res.json(userWithoutPassword);
+    
   } catch (error) {
     next(error);
   }
