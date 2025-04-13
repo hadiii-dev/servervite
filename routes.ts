@@ -477,6 +477,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         languages: user.languages || {},
         skills: user.skills || [],
         basicData: user.basicData || {},
+        savedJobs: user.savedJobs || [],
       };
 
       res.json(profile);
