@@ -251,6 +251,74 @@ export const sessionJobs = pgTable(
   }
 );
 
+export const skills = pgTable(
+  "skills",
+  {
+    id: serial("id").primaryKey(),
+    conceptType: text("concept_type"),
+    conceptUri: text("concept_uri").unique(),
+    skillType: text("skill_type"),
+    reuseLevel: text("reuse_level"),
+    preferredLabel: text("preferred_label").notNull(),
+    altLabels: text("alt_labels"),
+    status: text("status"),
+    modifiedDate: timestamp("modified_date"),
+    scopeNote: text("scope_note"),
+    definition: text("definition"),
+    inScheme: text("in_scheme"),
+    description: text("description"),
+  },
+  (table) => {
+    return {
+      preferredLabelIdx: index("skills_preferred_label_idx").on(table.preferredLabel),
+      skillTypeIdx: index("skills_skill_type_idx").on(table.skillType),
+    };
+  }
+);
+
+export const occupationSkillRelations = pgTable(
+  "occupation_skill_relations",
+  {
+    id: serial("id").primaryKey(),
+    occupationUri: text("occupation_uri")
+      .references(() => occupations.conceptUri)
+      .notNull(),
+    skillUri: text("skill_uri")
+      .references(() => skills.conceptUri)
+      .notNull(),
+    relationType: text("relation_type").notNull(),
+    skillType: text("skill_type").notNull(),
+  },
+  (table) => {
+    return {
+      occupationSkillIdx: index("occupation_skill_idx").on(table.occupationUri, table.skillUri),
+      relationTypeIdx: index("occupation_skill_relation_type_idx").on(table.relationType),
+    };
+  }
+);
+
+export const iscoGroups = pgTable(
+  "isco_groups",
+  {
+    id: serial("id").primaryKey(),
+    conceptType: text("concept_type"),
+    conceptUri: text("concept_uri").unique(),
+    preferredLabel: text("preferred_label").notNull(),
+    altLabels: text("alt_labels"),
+    status: text("status"),
+    modifiedDate: timestamp("modified_date"),
+    scopeNote: text("scope_note"),
+    definition: text("definition"),
+    inScheme: text("in_scheme"),
+    description: text("description"),
+  },
+  (table) => {
+    return {
+      preferredLabelIdx: index("isco_groups_preferred_label_idx").on(table.preferredLabel),
+    };
+  }
+);
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users)
   .omit({
