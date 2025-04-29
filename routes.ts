@@ -77,8 +77,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/data/esco-occupations', async (req, res) => {
     try {
       const occupations = await db.execute(sql`
-        SELECT * FROM esco_occupations
-        ORDER BY code
+        SELECT * FROM occupationsNew
       `);
       res.json(occupations.rows);
     } catch (error) {

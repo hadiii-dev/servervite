@@ -4,26 +4,27 @@ import { parse } from 'csv-parse/sync';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
-async function importOccupations() {
+async function importOccupationsNew() {
   try {
     // Read and parse occupations CSV file
-    const occupationsData = parse(readFileSync(join(__dirname, '../occupations_en.csv')), {
-      columns: true,
-      skip_empty_lines: true,
-    });
+    const occupationsData = parse(
+      readFileSync(join(__dirname, '../occupations_en.csv')),
+      {
+        columns: true,
+        skip_empty_lines: true,
+      }
+    );
 
-    console.log('Starting occupations import...');
+    console.log('Starting occupations import into occupationsNew...');
     console.log(`Found ${occupationsData.length} occupations to import`);
 
-    // Import occupations
-    console.log('Importing occupations...');
     let successCount = 0;
     let errorCount = 0;
 
     for (const occupation of occupationsData) {
       try {
         await db.execute(sql`
-          INSERT INTO occupations (
+          INSERT INTO occupationsNew (
             concept_uri,
             concept_type,
             isco_group,
@@ -71,9 +72,9 @@ async function importOccupations() {
 }
 
 // Run the import
-importOccupations()
+importOccupationsNew()
   .then(() => process.exit(0))
   .catch((error) => {
     console.error('Import failed:', error);
     process.exit(1);
-  }); 
+  });
