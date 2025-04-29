@@ -90,8 +90,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/data/skills', async (req, res) => {
     try {
       const skills = await db.execute(sql`
-        SELECT * FROM skills
-        ORDER BY title
+        SELECT * FROM skillsnew
+        
       `);
       res.json(skills.rows);
     } catch (error) {
