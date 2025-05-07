@@ -9,6 +9,7 @@ import {
   jsonb,
   doublePrecision,
   index,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -25,26 +26,25 @@ export const users = pgTable(
     cvPath: text("cv_path"),
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
-    // Firebase related fields
-    firebaseId: text("firebaseId").unique(),
-    firebaseToken: text("firebase_token"),
-    // Campos adicionales para el perfil
     workPreferences: json("work_preferences"),
     education: json("education"),
     languages: json("languages"),
     skills: text("skills").array(),
-    savedJobs: json("saved_jobs").array(),
-    basicData: json("basic_data"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    firebaseId: varchar("firebaseId", { length: 255 }),
+    firebaseToken: text("firebase_token"),
+    savedJobs: text("saved_jobs").array(),
+    basicData: json("basic_data"),
+    iscoGroups: text("isco_groups").array(),
+    occupations: text("occupations").array(),
+    idUserJobsUsersId: integer("id_user_jobs_users_id"),
+    userOccupations: integer("user_occupations")
   },
   (table) => {
     return {
-      // Índice para búsquedas por usuario o correo
       usernameIdx: index("users_username_idx").on(table.username),
       emailIdx: index("users_email_idx").on(table.email),
-      // Índice para búsquedas por Firebase ID
       firebaseIdIdx: index("users_firebase_id_idx").on(table.firebaseId),
-      // Índice espacial para búsquedas por proximidad
       geoIdx: index("users_geo_idx").on(table.latitude, table.longitude),
     };
   }
@@ -324,10 +324,24 @@ export const insertUserSchema = createInsertSchema(users)
   .omit({
     id: true,
     createdAt: true,
+    idUserJobsUsersId: true,
+    userOccupations: true
   })
   .extend({
     firebaseId: z.string().optional(),
     firebaseToken: z.string().optional(),
+    workPreferences: z.record(z.unknown()).optional(),
+    education: z.record(z.unknown()).optional(),
+    languages: z.record(z.unknown()).optional(),
+    skills: z.array(z.string()).optional(),
+    savedJobs: z.array(z.string()).optional(),
+    basicData: z.record(z.unknown()).optional(),
+    iscoGroups: z.array(z.string()).optional(),
+    occupations: z.array(z.string()).optional(),
+    latitude: z.number().nullable().optional(),
+    longitude: z.number().nullable().optional(),
+    cvPath: z.string().nullable().optional(),
+    phone: z.string().nullable().optional()
   });
 
 export const insertOccupationSchema = createInsertSchema(occupations).omit({
@@ -371,25 +385,22 @@ export type SentimentType =
   | "doubtful"
   | "negative";
 
-export type InsertUser = z.infer<typeof insertUserSchema>;
-export type User = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferSelect;
 
-export type InsertOccupation = z.infer<typeof insertOccupationSchema>;
+export type InsertOccupation = typeof occupations.$inferSelect;
 export type Occupation = typeof occupations.$inferSelect;
 
-export type InsertUserOccupation = z.infer<typeof insertUserOccupationSchema>;
+export type InsertUserOccupation = typeof userOccupations.$inferSelect;
 export type UserOccupation = typeof userOccupations.$inferSelect;
 
-export type InsertJob = z.infer<typeof insertJobSchema>;
+export type InsertJob = typeof jobs.$inferSelect;
 export type Job = typeof jobs.$inferSelect;
 
-export type InsertUserJob = z.infer<typeof insertUserJobSchema>;
+export type InsertUserJob = typeof userJobs.$inferSelect;
 export type UserJob = typeof userJobs.$inferSelect;
 
-export type InsertAnonymousSession = z.infer<
-  typeof insertAnonymousSessionSchema
->;
+export type InsertAnonymousSession = typeof anonymousSessions.$inferSelect;
 export type AnonymousSession = typeof anonymousSessions.$inferSelect;
 
-export type InsertSessionJob = z.infer<typeof insertSessionJobSchema>;
+export type InsertSessionJob = typeof sessionJobs.$inferSelect;
 export type SessionJob = typeof sessionJobs.$inferSelect;
