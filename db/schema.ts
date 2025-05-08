@@ -17,7 +17,10 @@ export const users = pgTable('users', {
   yearsOfExperience: integer('years_of_experience'),
   preferences: jsonb('preferences'),
   createdAt: timestamp('created_at').defaultNow(),
-  updatedAt: timestamp('updated_at').defaultNow()
+  updatedAt: timestamp('updated_at').defaultNow(),
+  isco_groups: jsonb('isco_groups').$type<string[]>(),
+  occupations: jsonb('occupations').$type<string[]>(),
+
 });
 
 export type User = typeof users.$inferSelect;

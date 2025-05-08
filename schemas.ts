@@ -36,6 +36,9 @@ export const users = pgTable(
     savedJobs: json("saved_jobs").array(),
     basicData: json("basic_data"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
+    isco_groups: text("isco_groups").array(),
+    occupations: text("occupations").array(),
+
   },
   (table) => {
     return {
