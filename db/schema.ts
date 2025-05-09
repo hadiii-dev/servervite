@@ -1,31 +1,23 @@
 import { drizzle } from 'drizzle-orm/neon-http';
 import { neon } from '@neondatabase/serverless';
-import { pgTable, serial, text, timestamp, boolean, integer, jsonb, varchar, date, doublePrecision, json } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, timestamp, boolean, integer, jsonb, varchar, date } from 'drizzle-orm/pg-core';
 
 // Users table
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
-  username: text('username').notNull().unique(),
-  password: text('password').notNull(),
-  email: text('email').notNull().unique(),
-  phone: text('phone'),
-  fullName: text('full_name'),
-  cvPath: text('cv_path'),
-  latitude: doublePrecision('latitude'),
-  longitude: doublePrecision('longitude'),
-  workPreferences: json('work_preferences'),
-  education: json('education'),
-  languages: json('languages'),
-  skills: text('skills').array(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  firebaseId: varchar('firebaseId', { length: 255 }),
-  firebaseToken: text('firebase_token'),
-  savedJobs: text('saved_jobs').array(),
-  basicData: json('basic_data'),
-  iscoGroups: text('isco_groups').array(),
-  occupations: text('occupations').array(),
-  idUserJobsUsersId: integer('id_user_jobs_users_id'),
-  userOccupations: integer('user_occupations')
+  username: varchar('username', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }).notNull(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  firstName: varchar('first_name', { length: 255 }),
+  lastName: varchar('last_name', { length: 255 }),
+  phone: varchar('phone', { length: 255 }),
+  location: varchar('location', { length: 255 }),
+  skills: jsonb('skills').$type<string[]>(),
+  professionalTitle: varchar('professional_title', { length: 255 }),
+  yearsOfExperience: integer('years_of_experience'),
+  preferences: jsonb('preferences'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow()
 });
 
 export type User = typeof users.$inferSelect;
