@@ -586,8 +586,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Get user occupations to enrich profile data
-      const userOccupations = await storage.getUserOccupationsByUserId(user.id);
 
       // Format user profile data
       const profile = {
@@ -600,14 +598,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         latitude: user.latitude,
         longitude: user.longitude,
         profileCompleted: Boolean(user.fullName && user.cvPath),
-        occupations: userOccupations,
-        // Additional profile fields from JSON fields
+
         workPreferences: user.workPreferences || {},
         education: user.education || {},
         languages: user.languages || {},
-        skills: user.skills || [],
+        u_skills: user.skills || [],
         basicData: user.basicData || {},
         savedJobs: user.savedJobs || [],
+        u_occupations: user.occupations || [],
+        isco_groups: user.isco_groups || [],
       };
 
       res.json(profile);
