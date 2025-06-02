@@ -349,7 +349,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         JSON.stringify(userData, null, 2)
       );
       const user = await storage.createUser(userData);
-      res.status(201).json({ id: user.id });
+      
+      // Return the full user data
+      res.status(201).json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.fullName,
+        cvPath: user.cvPath,
+        latitude: user.latitude,
+        longitude: user.longitude,
+        profileCompleted: Boolean(user.fullName && user.cvPath),
+        firebaseId: user.firebaseId,
+        firebaseToken: user.firebaseToken,
+        workPreferences: user.workPreferences || {},
+        education: user.education || {},
+        languages: user.languages || {},
+        skills: user.skills || [],
+        basicData: user.basicData || {},
+        savedJobs: user.savedJobs || [],
+      });
     } catch (error) {
       console.error("Error al crear usuario:", error);
       if (error instanceof z.ZodError) {
@@ -402,30 +422,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // Get occupations
-  app.get("/api/occupations", async (req: Request, res: Response) => {
-    try {
-      const searchQuery = req.query.search as string | undefined;
-      const occupations = await storage.getOccupations(searchQuery);
-      res.json(occupations);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get occupations" });
-    }
-  });
-
-  // Save user occupation preferences
-  app.post("/api/user-occupations", async (req: Request, res: Response) => {
-    try {
-      const userOccupationData = insertUserOccupationSchema.parse(req.body);
-      const userOccupation = await storage.createUserOccupation(
-        userOccupationData
-      );
-      res.status(201).json(userOccupation);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid occupation preference data" });
-    }
-  });
-
   // Get jobs
   app.get("/api/jobs", async (req: Request, res: Response) => {
     try {
@@ -444,12 +440,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderBy = (req.query.orderBy as string) || "recent";
 
       // Set up options for pagination, exclusion, and ordering
-      const options = { limit, offset, excludeIds, orderBy };
+      const options: any = { limit, offset, excludeIds, orderBy };
 
       let jobs;
       if (userId) {
-        // User is logged in, get personalized recommendations with pagination
-        jobs = await getRecommendedJobs(userId, undefined, options);
+        // User is logged in, get user profile for filtering
+        const user = await storage.getUser(userId);
+        if (user) {
+          options.isco_groups = user.isco_groups || [];
+          options.occupations = user.occupations || [];
+        }
+        jobs = await storage.getJobs(options);
       } else if (sessionId) {
         // Anonymous user with session, get recommendations based on session with pagination
         jobs = await getRecommendedJobs(undefined, sessionId, options);
@@ -683,7 +684,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This would typically be a protected route in production
       const xmlUrl =
         req.body.xmlUrl ||
-        "https://storage.googleapis.com/the-wise-seeker-production-integration/thewiseseeker-Wonderkind.com-f4c5fa75ab7e21d8dfaa7a690a075132074c45bc39ca39c49cb96b677e90d810.xml";
+        "https://app.ktitalentindicator.com/xml/jobs_clasificados.xml";
 
       // Import the syncJobsFromXML function only when needed
       const { syncJobsFromXML } = await import("./utils/jobSync");
@@ -698,8 +699,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to sync jobs" });
     }
   });
+
+  // NEW: Batched sync endpoint for handling large job imports
+  app.post("/api/sync-jobs-batch", async (req: Request, res: Response) => {
+    try {
+      console.log("🚀 Starting batched job sync...");
+
+      // Get batch size from request (default 500 jobs per batch)
+      const batchSize = req.body.batchSize || 500;
+      const maxJobs = req.body.maxJobs || null; // Optional limit
+
+      // Use the same XML URL as the regular sync
+      const xmlUrl = req.body.xmlUrl || 
+        "https://app.ktitalentindicator.com/xml/jobs_clasificados.xml";
+
+      // Import required functions
+      const { fetchJobsFromXML } = await import("./utils/xmlParser");
+      const { storage } = await import("./storage");
+
+      // Fetch all jobs from XML
+      console.log("📡 Fetching jobs from XML...");
+      const allJobs = await fetchJobsFromXML(xmlUrl);
+      console.log(`✅ Found ${allJobs.length} jobs in XML`);
+
+      // Limit jobs if maxJobs is specified
+      const jobsToProcess = maxJobs ? allJobs.slice(0, maxJobs) : allJobs;
+
+      let totalProcessed = 0;
+      let newJobsAdded = 0;
+      let duplicatesSkipped = 0;
+      const startTime = Date.now();
+
+      // Process jobs in batches
+      for (let i = 0; i < jobsToProcess.length; i += batchSize) {
+        const batch = jobsToProcess.slice(i, i + batchSize);
+        const batchNumber = Math.floor(i / batchSize) + 1;
+        const totalBatches = Math.ceil(jobsToProcess.length / batchSize);
+
+        console.log(`🔄 Processing batch ${batchNumber}/${totalBatches} (${batch.length} jobs)...`);
+
+        // Process each job in the batch
+        for (const job of batch) {
+          try {
+            // Check if job already exists
+            const existingJob = await storage.getJobByExternalId(job.externalId || '');
+
+            if (!existingJob) {
+              // Create new job
+              await storage.createJob(job);
+              newJobsAdded++;
+            } else {
+              duplicatesSkipped++;
+            }
+
+            totalProcessed++;
+          } catch (error) {
+            console.error(`❌ Error processing job ${job.externalId}:`, error);
+          }
+        }
+
+        // Log progress
+        const progress = ((i + batch.length) / jobsToProcess.length * 100).toFixed(1);
+        console.log(`📊 Progress: ${progress}% - New jobs: ${newJobsAdded}, Duplicates: ${duplicatesSkipped}`);
+
+        // Small delay between batches to prevent overwhelming the database
+        if (i + batchSize < jobsToProcess.length) {
+          await new Promise(resolve => setTimeout(resolve, 250));
+        }
+      }
+
+      const endTime = Date.now();
+      const durationSeconds = (endTime - startTime) / 1000;
+
+      console.log("✅ Batched sync completed!");
+
+      res.json({
+        success: true,
+        message: `Batched sync completed successfully`,
+        summary: {
+          totalJobsInXML: allJobs.length,
+          jobsProcessed: totalProcessed,
+          newJobsAdded: newJobsAdded,
+          duplicatesSkipped: duplicatesSkipped,
+          batchSize: batchSize,
+          durationSeconds: Math.round(durationSeconds),
+          averageJobsPerSecond: Math.round(totalProcessed / durationSeconds)
+        }
+      });
+
+    } catch (error) {
+      console.error("❌ Batched sync failed:", error);
+      res.status(500).json({ 
+        error: "Batched sync failed",
+        //@ts-ignore 
+        details: error.message 
+      });
+    }
+  });
+
   app.post("/register", authController.register);
+
   app.get("/api/users/:id", authController.getProfile);
+
   // Import occupations from CSV
   app.post("/api/import-occupations", async (req: Request, res: Response) => {
     try {

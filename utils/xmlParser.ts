@@ -24,6 +24,28 @@ export async function fetchJobsFromXML(xmlUrl: string): Promise<InsertJob[]> {
     const jobs: InsertJob[] = jobListings.map((job: any) => {
       const skills = extractSkills(job.skills || job.description || "");
       
+      // Extract ISCO group codes
+      let iscoGroups: string[] = [];
+      if (job.classifications && job.classifications.isco_groups) {
+        const isco = job.classifications.isco_groups.isco_group;
+        if (Array.isArray(isco)) {
+          iscoGroups = isco.map((g: any) => g.code || g.label).filter(Boolean);
+        } else if (isco) {
+          iscoGroups = [isco.code || isco.label].filter(Boolean);
+        }
+      }
+
+      // Extract occupation labels
+      let occupations: string[] = [];
+      if (job.classifications && job.classifications.occupations) {
+        const occ = job.classifications.occupations.occupation;
+        if (Array.isArray(occ)) {
+          occupations = occ.map((o: any) => o.label).filter(Boolean);
+        } else if (occ) {
+          occupations = [occ.label].filter(Boolean);
+        }
+      }
+      
       // Clean the description by removing HTML tags and decoding HTML entities
       const rawDescription = job.description || job.summary || null;
       const cleanedDescription = cleanHtmlText(rawDescription);
@@ -96,6 +118,8 @@ export async function fetchJobsFromXML(xmlUrl: string): Promise<InsertJob[]> {
         longitude: longitude,
         isRemote: isRemote,
         postedDate: job.date ? new Date(job.date) : new Date(),
+        isco_groups: iscoGroups,
+        occupations: occupations,
         xmlData: job // Store the original XML data
       };
     });

@@ -132,6 +132,8 @@ export const jobs = pgTable(
     isRemote: boolean("is_remote").default(false),
     postedDate: timestamp("posted_date"),
     xmlData: jsonb("xml_data"),
+    isco_groups: text("isco_groups").array(),
+    occupations: text("occupations").array(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => {

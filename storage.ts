@@ -80,6 +80,8 @@ export interface IStorage {
     orderBy?: string;
     skills?: string[];
     location?: string; // New parameter for location-based filtering
+    isco_groups?: string[];
+    occupations?: string[];
   }): Promise<Job[]>;
   createJob(job: InsertJob): Promise<Job>;
 
@@ -305,6 +307,8 @@ export class DatabaseStorage implements IStorage {
     orderBy?: string;
     skills?: string[];
     location?: string;
+    isco_groups?: string[];
+    occupations?: string[];
   }): Promise<Job[]> {
     const limit = options?.limit ?? 20;
     const offset = options?.offset ?? 0;
@@ -314,6 +318,8 @@ export class DatabaseStorage implements IStorage {
     const orderBy = options?.orderBy || "recent"; // 'recent', 'random'
     const skills = options?.skills || [];
     const location = options?.location;
+    const iscoGroups = options?.isco_groups || [];
+    const occupations = options?.occupations || [];
 
     try {
       // Construimos una única consulta para evitar problemas de tipado con Drizzle
@@ -388,6 +394,15 @@ export class DatabaseStorage implements IStorage {
             like(jobs.location, `%${location.toLowerCase()}%`)
           );
         }
+      }
+
+      // Filtro por ISCO groups si se especifica
+      if (iscoGroups.length > 0) {
+        whereConditions.push(sql`${jobs.isco_groups} && ${iscoGroups}`); // array overlap
+      }
+      // Filtro por occupations si se especifica
+      if (occupations.length > 0) {
+        whereConditions.push(sql`${jobs.occupations} && ${occupations}`); // array overlap
       }
 
       // Ejecutamos la consulta con todos los filtros y ordenamientos aplicados de una vez
