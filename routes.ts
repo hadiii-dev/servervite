@@ -422,30 +422,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //   }
   // });
 
-  // Get occupations
-  app.get("/api/occupations", async (req: Request, res: Response) => {
-    try {
-      const searchQuery = req.query.search as string | undefined;
-      const occupations = await storage.getOccupations(searchQuery);
-      res.json(occupations);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to get occupations" });
-    }
-  });
-
-  // Save user occupation preferences
-  app.post("/api/user-occupations", async (req: Request, res: Response) => {
-    try {
-      const userOccupationData = insertUserOccupationSchema.parse(req.body);
-      const userOccupation = await storage.createUserOccupation(
-        userOccupationData
-      );
-      res.status(201).json(userOccupation);
-    } catch (error) {
-      res.status(400).json({ error: "Invalid occupation preference data" });
-    }
-  });
-
   // Get jobs
   app.get("/api/jobs", async (req: Request, res: Response) => {
     try {
@@ -464,12 +440,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const orderBy = (req.query.orderBy as string) || "recent";
 
       // Set up options for pagination, exclusion, and ordering
-      const options = { limit, offset, excludeIds, orderBy };
+      const options: any = { limit, offset, excludeIds, orderBy };
 
       let jobs;
       if (userId) {
-        // User is logged in, get personalized recommendations with pagination
-        jobs = await getRecommendedJobs(userId, undefined, options);
+        // User is logged in, get user profile for filtering
+        const user = await storage.getUser(userId);
+        if (user) {
+          options.isco_groups = user.isco_groups || [];
+          options.occupations = user.occupations || [];
+        }
+        jobs = await storage.getJobs(options);
       } else if (sessionId) {
         // Anonymous user with session, get recommendations based on session with pagination
         jobs = await getRecommendedJobs(undefined, sessionId, options);
@@ -704,7 +685,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This would typically be a protected route in production
       const xmlUrl =
         req.body.xmlUrl ||
-        "https://storage.googleapis.com/the-wise-seeker-production-integration/thewiseseeker-Wonderkind.com-f4c5fa75ab7e21d8dfaa7a690a075132074c45bc39ca39c49cb96b677e90d810.xml";
+        "https://app.ktitalentindicator.com/xml/jobs_clasificados.xml";
 
       // Import the syncJobsFromXML function only when needed
       const { syncJobsFromXML } = await import("./utils/jobSync");
@@ -731,7 +712,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Use the same XML URL as the regular sync
       const xmlUrl = req.body.xmlUrl || 
-        "https://storage.googleapis.com/the-wise-seeker-production-integration/thewiseseeker-Wonderkind.com-f4c5fa75ab7e21d8dfaa7a690a075132074c45bc39ca39c49cb96b677e90d810.xml";
+        "https://app.ktitalentindicator.com/xml/jobs_clasificados.xml";
 
       // Import required functions
       const { fetchJobsFromXML } = await import("./utils/xmlParser");
