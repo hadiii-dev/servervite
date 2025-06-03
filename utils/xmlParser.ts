@@ -18,7 +18,7 @@ export async function fetchJobsFromXML(xmlUrl: string): Promise<InsertJob[]> {
     const jsonObj = parser.parse(xmlContent);
     
     // Extract job listings
-    const jobListings = jsonObj?.source?.job || [];
+    const jobListings = jsonObj?.jobs?.job || [];
     
     // Transform into our job model
     const jobs: InsertJob[] = jobListings.map((job: any) => {

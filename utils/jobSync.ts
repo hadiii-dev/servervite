@@ -2,7 +2,8 @@ import { storage } from "../storage";
 import { fetchJobsFromXML } from "./xmlParser";
 import { log } from "./logger";
 // Default XML feed URL - can be overridden in environment variables
-const DEFAULT_XML_FEED = "https://app.ktitalentindicator.com/xml/w3.xml";
+// const DEFAULT_XML_FEED = "https://app.ktitalentindicator.com/xml/w3.xml";
+const DEFAULT_XML_FEED = "https://app.ktitalentindicator.com/xml/jobs_clasificados.xml";
 console.log("🚀 ~ DEFAULT_XML_FEED:", DEFAULT_XML_FEED)
 
 // Frequency of synchronization in milliseconds
@@ -66,13 +67,13 @@ export async function syncJobsFromXML(xmlUrl?: string): Promise<{ status: string
  */
 export function startJobSyncScheduler(): void {
   // Run initial sync
-  syncJobsFromXML('https://app.ktitalentindicator.com/xml/w3.xml').catch(error => {
+  syncJobsFromXML('https://app.ktitalentindicator.com/xml/jobs_clasificados.xml').catch(error => {
     log(`Initial job sync failed: ${error}`);
   });
   
   // Schedule periodic syncs
   setInterval(() => {
-    syncJobsFromXML('https://app.ktitalentindicator.com/xml/w3.xml').catch(error => {
+    syncJobsFromXML('https://app.ktitalentindicator.com/xml/jobs_clasificados.xml').catch(error => {
       log(`Scheduled job sync failed: ${error}`);
     });
   }, SYNC_INTERVAL_MS);
