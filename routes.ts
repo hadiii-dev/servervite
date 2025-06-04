@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get occupation details
       const occupation = await db.execute(sql`
-        SELECT * FROM occupations
+        SELECT * FROM occupationsNew
         WHERE concept_uri = ${uri}
       `);
   
@@ -166,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get related occupations
       const occupations = await db.execute(sql`
         SELECT o.* 
-        FROM occupations o
+        FROM occupationsNew o
         JOIN occupation_skill_relations_new osr ON o.concept_uri = osr.occupation_uri
         WHERE osr.skill_uri = ${uri}
         ORDER BY o.preferred_label
@@ -441,6 +441,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Set up options for pagination, exclusion, and ordering
       const options: any = { limit, offset, excludeIds, orderBy };
+
+      // Add ISCO group filtering if provided
+      if (req.query.isco_groups) {
+        options.isco_groups = (req.query.isco_groups as string).split(',');
+      }
 
       let jobs;
       if (userId) {
