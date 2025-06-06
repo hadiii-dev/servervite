@@ -121,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get occupation details
       const occupation = await db.execute(sql`
-        SELECT * FROM occupationsnew
+        SELECT * FROM occupations
         WHERE concept_uri = ${uri}
       `);
   
@@ -166,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get related occupations
       const occupations = await db.execute(sql`
         SELECT o.* 
-        FROM occupationsnew o
+        FROM occupations o
         JOIN occupation_skill_relations_new osr ON o.concept_uri = osr.occupation_uri
         WHERE osr.skill_uri = ${uri}
         ORDER BY o.preferred_label
