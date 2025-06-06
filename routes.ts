@@ -475,6 +475,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: job.description ? cleanHtmlText(job.description) : null,
       }));
 
+      console.log("Returning jobs:", cleanedJobs.length, cleanedJobs);
+
       res.json(cleanedJobs);
     } catch (error) {
       res.status(500).json({ error: "Failed to get jobs" });
