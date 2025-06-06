@@ -397,9 +397,16 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Filtro por ISCO groups si se especifica
+      // if (iscoGroups.length > 0) {
+      //   whereConditions.push(sql`${jobs.isco_groups} && ${iscoGroups}`); // array overlap
+      // }
+
       if (iscoGroups.length > 0) {
-        whereConditions.push(sql`${jobs.isco_groups} && ${iscoGroups}`); // array overlap
+        whereConditions.push(
+          sql`${jobs.isco_groups} && ARRAY[${iscoGroups.map(g => `'${g}'`).join(",")}]::text[]`
+        );
       }
+      
       // Filtro por occupations si se especifica
       if (occupations.length > 0) {
         whereConditions.push(sql`${jobs.occupations} && ${occupations}`); // array overlap
