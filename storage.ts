@@ -402,16 +402,16 @@ export class DatabaseStorage implements IStorage {
       // }
 
       if (iscoGroups.length > 0) {
-        // whereConditions.push(
-        //   sql`${jobs.isco_groups} && ARRAY[${iscoGroups.map(g => `'${g}'`).join(",")}]::text[]`
-        // );
         whereConditions.push(
-          sql.raw(
-            `${jobs.isco_groups.sql} && ARRAY[${iscoGroups
-              .map((g) => `'${g}'`)
-              .join(",")}]::text[]`
-          )
+          sql`${jobs.isco_groups} && ARRAY[${iscoGroups.map(g => `'${g}'`).join(",")}]::text[]`
         );
+        // whereConditions.push(
+        //   sql.raw(
+        //     `${jobs.isco_groups.sql} && ARRAY[${iscoGroups
+        //       .map((g) => `'${g}'`)
+        //       .join(",")}]::text[]`
+        //   )
+        // );
       }
 
       // Filtro por occupations si se especifica
