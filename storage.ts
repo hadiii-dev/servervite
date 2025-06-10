@@ -407,10 +407,10 @@ export class DatabaseStorage implements IStorage {
         console.log('Filtering by ISCO groups:', {
           iscoGroups,
           iscoGroupsArray,
-          query: `isco_groups && ARRAY[${iscoGroupsArray}]::text[]`
+          query: `EXISTS (SELECT 1 FROM unnest(isco_groups) AS job_isco WHERE job_isco = ANY(ARRAY[${iscoGroupsArray}]::text[]))`
         });
         whereConditions.push(
-          sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray}]::text[]`
+          sql`EXISTS (SELECT 1 FROM unnest(${jobs.isco_groups}) AS job_isco WHERE job_isco = ANY(ARRAY[${iscoGroupsArray}]::text[]))`
         );
         // whereConditions.push(
         //   sql.raw(
@@ -580,6 +580,9 @@ export class DatabaseStorage implements IStorage {
             excludeIds.length > 0 ? `${excludeIds.length} ids` : "none",
         })}`
       );
+
+      // Log all where conditions for debugging
+      console.log('Where conditions:', whereConditions.map(c => c.toString()));
 
       return filteredResults;
     } catch (error) {
