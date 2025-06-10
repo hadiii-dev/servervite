@@ -397,6 +397,10 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Filtro por ISCO groups si se especifica
+      // if (iscoGroups.length > 0) {
+      //   whereConditions.push(sql`${jobs.isco_groups} && ${iscoGroups}`); // array overlap
+      // }
+
       if (iscoGroups.length > 0) {
         // Convert each ISCO group to a string and create a PostgreSQL array
         const iscoGroupsArray = iscoGroups.map(g => `'${g}'`).join(',');
@@ -408,6 +412,13 @@ export class DatabaseStorage implements IStorage {
         whereConditions.push(
           sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray}]::text[]`
         );
+        // whereConditions.push(
+        //   sql.raw(
+        //     `${jobs.isco_groups.sql} && ARRAY[${iscoGroups
+        //       .map((g) => `'${g}'`)
+        //       .join(",")}]::text[]`
+        //   )
+        // );
       }
 
       // Filtro por occupations si se especifica
