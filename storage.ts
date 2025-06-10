@@ -22,7 +22,7 @@ import {
   type InsertSessionJob,
 } from "./schemas";
 import { db } from "./db";
-import { eq, like, and, desc, or, notInArray, sql } from "drizzle-orm";
+import { eq, like, and, desc, or, notInArray, sql, SQL } from "drizzle-orm";
 import fs from "fs";
 import { parse } from "csv-parse/sync";
 
@@ -326,7 +326,7 @@ export class DatabaseStorage implements IStorage {
       // y optimizar el rendimiento evitando múltiples transformaciones del objeto de consulta
 
       // Preparamos los filtros como un array de condiciones
-      const whereConditions = [];
+      const whereConditions: SQL[] = [];
 
       // Filtro de exclusión de IDs (si no hay demasiados)
       if (excludeIds.length > 0 && excludeIds.length <= 50) {
@@ -582,7 +582,7 @@ export class DatabaseStorage implements IStorage {
       );
 
       // Log all where conditions for debugging
-      console.log('Where conditions:', whereConditions.map(c => c.toString()));
+      console.log('Where conditions:', JSON.stringify(whereConditions));
 
       return filteredResults;
     } catch (error) {
