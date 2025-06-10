@@ -411,7 +411,7 @@ export class DatabaseStorage implements IStorage {
           query: `isco_groups && ARRAY[${iscoGroupsArray}]::text[]`
         });
         whereConditions.push(
-          sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray}]::text[]`
+          sql`${jobs.isco_groups} && ${iscoGroups}`
         );
         // whereConditions.push(
         //   sql.raw(
