@@ -408,10 +408,10 @@ export class DatabaseStorage implements IStorage {
         console.log('Filtering by ISCO groups:', {
           iscoGroups,
           iscoGroupsArray,
-          query: `EXISTS (SELECT 1 FROM unnest(isco_groups) AS job_isco WHERE job_isco = ANY(ARRAY[${iscoGroupsArray}]::text[]))`
+          query: `isco_groups && ARRAY[${iscoGroupsArray}]::text[]`
         });
         whereConditions.push(
-          sql`EXISTS (SELECT 1 FROM unnest(${jobs.isco_groups}) AS job_isco WHERE job_isco = ANY(ARRAY[${iscoGroupsArray}]::text[]))`
+          sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray}]::text[]`
         );
         // whereConditions.push(
         //   sql.raw(
@@ -432,13 +432,28 @@ export class DatabaseStorage implements IStorage {
       if (orderBy === "recent") {
         // Orden por fecha de creación (más recientes primero)
         if (whereConditions.length > 0) {
-          result = await db
-            .select()
-            .from(jobs)
-            .where(and(...whereConditions))
-            .orderBy(desc(jobs.createdAt))
-            .offset(offset)
-            .limit(limit);
+          try {
+            result = await db
+              .select()
+              .from(jobs)
+              .where(and(...whereConditions))
+              .orderBy(desc(jobs.createdAt))
+              .offset(offset)
+              .limit(limit);
+
+            // Log the results for debugging
+            console.log('Query results:', {
+              totalResults: result.length,
+              firstResult: result[0] ? {
+                id: result[0].id,
+                title: result[0].title,
+                isco_groups: result[0].isco_groups
+              } : null
+            });
+          } catch (error) {
+            console.error('Error executing query:', error);
+            throw error;
+          }
         } else {
           result = await db
             .select()
@@ -582,8 +597,13 @@ export class DatabaseStorage implements IStorage {
         })}`
       );
 
-      // Log all where conditions for debugging
-      console.log('Where conditions:', JSON.stringify(whereConditions));
+      // Log all where conditions for debugging (safely)
+      console.log('Where conditions:', whereConditions.map(c => {
+        if (c && typeof c === 'object' && 'sql' in c) {
+          return c.sql;
+        }
+        return 'unknown condition';
+      }));
 
       return filteredResults;
     } catch (error) {
