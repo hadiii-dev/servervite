@@ -385,6 +385,7 @@ export class DatabaseStorage implements IStorage {
           const locationConditions = spainKeywords.map((keyword) =>
             like(jobs.location, `%${keyword.toLowerCase()}%`)
           );
+          // @ts-ignore
 
           // Añadimos la condición OR a las condiciones de filtro
           whereConditions.push(or(...locationConditions));
