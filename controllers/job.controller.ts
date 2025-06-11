@@ -22,17 +22,35 @@ export const getJobs = async (
   next: NextFunction
 ) => {
   try {
-    // Extraer IDs a excluir si existen
-    let excludeIds: number[] = [];
-    if (req.query.excludeIds) {
-      const excludeIdsParam = req.query.excludeIds as string;
-      excludeIds = excludeIdsParam.split(",").map((id) => parseInt(id.trim()));
+    console.log('🎯 Job controller received request with query:', req.query);
+
+    // Extract all query parameters
+    const options: any = {
+      limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
+      offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
+      excludeIds: req.query.excludeIds 
+        ? (req.query.excludeIds as string).split(",").map((id) => parseInt(id.trim()))
+        : [],
+      orderBy: (req.query.orderBy as string) || "recent"
+    };
+
+    // Add ISCO groups if provided
+    if (req.query.isco_groups) {
+      const iscoGroupsStr = req.query.isco_groups as string;
+      console.log('📊 Controller received ISCO groups:', iscoGroupsStr);
+      options.isco_groups = iscoGroupsStr.split(',').map(g => g.trim());
+      console.log('🔄 Controller processed ISCO groups:', options.isco_groups);
     }
 
-    // Obtener todos los trabajos
-    const jobs = await jobService.getJobs({ excludeIds });
+    // Add user ID if provided
+    if (req.query.userId) {
+      options.userId = parseInt(req.query.userId as string);
+    }
 
-    console.log("🚀 ~ getJobs ~ jobs:", jobs);
+    // Get jobs with all options
+    const jobs = await jobService.getJobs(options);
+
+    console.log("🚀 Controller returning jobs:", jobs.length);
     res.json(jobs);
   } catch (error) {
     next(error);
