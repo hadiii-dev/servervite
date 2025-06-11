@@ -338,16 +338,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User registration
   app.post("/api/users", async (req: Request, res: Response) => {
     try {
-      console.log(
-        "Recibiendo datos de registro:",
-        JSON.stringify(req.body, null, 2)
-      );
+      console.log('🔍 [DEBUG] Received registration data:', JSON.stringify(req.body, null, 2));
+      
+      // Validate the request data
       const userData = insertUserSchema.parse(req.body);
-      console.log(
-        "Datos validados correctamente:",
-        JSON.stringify(userData, null, 2)
-      );
+      console.log('✅ [DEBUG] Validated registration data:', JSON.stringify(userData, null, 2));
+
+      // Check if user already exists with this Firebase ID
+      if (userData.firebaseId) {
+        const existingUser = await storage.getUserByFirebaseId(userData.firebaseId);
+        if (existingUser) {
+          console.log('✅ [DEBUG] User already exists with Firebase ID:', userData.firebaseId);
+          return res.status(200).json({
+            id: existingUser.id,
+            username: existingUser.username,
+            email: existingUser.email,
+            phone: existingUser.phone,
+            fullName: existingUser.fullName,
+            cvPath: existingUser.cvPath,
+            latitude: existingUser.latitude,
+            longitude: existingUser.longitude,
+            profileCompleted: Boolean(existingUser.fullName && existingUser.cvPath),
+            firebaseId: existingUser.firebaseId,
+            firebaseToken: existingUser.firebaseToken,
+            workPreferences: existingUser.workPreferences || {},
+            education: existingUser.education || {},
+            languages: existingUser.languages || {},
+            skills: existingUser.skills || [],
+            basicData: existingUser.basicData || {},
+            savedJobs: existingUser.savedJobs || [],
+            isco_groups: existingUser.isco_groups || [],
+          });
+        }
+      }
+
+      // Create new user
       const user = await storage.createUser(userData);
+      console.log('✅ [DEBUG] Created new user:', user.id);
       
       // Return the full user data
       res.status(201).json({
@@ -371,18 +398,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isco_groups: user.isco_groups || [],
       });
     } catch (error) {
-      console.error("Error al crear usuario:", error);
+      console.error('❌ [DEBUG] Error creating user:', error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
-          error: "Datos de usuario inválidos",
+          error: "Invalid user data",
           details: error.format(),
         });
       }
-      // Más detalles para errores de base de datos (como duplicados)
-      const errorMessage =
-        error instanceof Error ? error.message : "Error desconocido";
+      // More details for database errors (like duplicates)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
       res.status(400).json({
-        error: "No se pudo crear el usuario",
+        error: "Failed to create user",
         message: errorMessage,
       });
     }
@@ -600,18 +626,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Get user profile data
+  // Get user profile by Firebase ID
   app.get('/api/users/:firebaseId/profile', async (req: Request, res: Response) => {
     try {
       const { firebaseId } = req.params;
+      console.log('🔍 [DEBUG] Fetching profile for Firebase ID:', firebaseId);
+      
       const user = await storage.getUserByFirebaseId(firebaseId);
       
       if (!user) {
+        console.log('❌ [DEBUG] User not found for Firebase ID:', firebaseId);
         return res.status(404).json({ error: "User not found" });
       }
 
       // Get user occupations to enrich profile data
       const userOccupations = await storage.getUserOccupationsByUserId(user.id);
+      console.log('✅ [DEBUG] Found user occupations:', userOccupations.length);
 
       // Format user profile data
       const profile = {
@@ -632,8 +662,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skills: user.skills
       };
 
+      console.log('✅ [DEBUG] Returning profile for user:', user.id);
       res.json(profile);
     } catch (error) {
+      console.error('❌ [DEBUG] Error getting user profile:', error);
       res.status(500).json({ error: "Failed to get user profile" });
     }
   });
