@@ -59,9 +59,6 @@ import { sql } from "drizzle-orm";
 // });
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Import and use the job routes
-  const jobRoutes = require('./routes/job.routes').default;
-  app.use('/api', jobRoutes);
 
   app.get('/api/data/isco-groups', async (req, res) => {
     try {
@@ -185,6 +182,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
+
+
+
+
   // Check server health
   app.get("/api/health", async (req: Request, res: Response) => {
     res.json({ status: "ok" });
@@ -240,7 +242,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to retrieve user" });
     }
   });
-
   // Session management
   app.post("/api/session", async (req: Request, res: Response) => {
     try {
@@ -338,43 +339,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // User registration
   app.post("/api/users", async (req: Request, res: Response) => {
     try {
-      console.log('🔍 [DEBUG] Received registration data:', JSON.stringify(req.body, null, 2));
-      
-      // Validate the request data
+      console.log(
+        "Recibiendo datos de registro:",
+        JSON.stringify(req.body, null, 2)
+      );
       const userData = insertUserSchema.parse(req.body);
-      console.log('✅ [DEBUG] Validated registration data:', JSON.stringify(userData, null, 2));
-
-      // Check if user already exists with this Firebase ID
-      if (userData.firebaseId) {
-        const existingUser = await storage.getUserByFirebaseId(userData.firebaseId);
-        if (existingUser) {
-          console.log('✅ [DEBUG] User already exists with Firebase ID:', userData.firebaseId);
-          return res.status(200).json({
-            id: existingUser.id,
-            username: existingUser.username,
-            email: existingUser.email,
-            phone: existingUser.phone,
-            fullName: existingUser.fullName,
-            cvPath: existingUser.cvPath,
-            latitude: existingUser.latitude,
-            longitude: existingUser.longitude,
-            profileCompleted: Boolean(existingUser.fullName && existingUser.cvPath),
-            firebaseId: existingUser.firebaseId,
-            firebaseToken: existingUser.firebaseToken,
-            workPreferences: existingUser.workPreferences || {},
-            education: existingUser.education || {},
-            languages: existingUser.languages || {},
-            skills: existingUser.skills || [],
-            basicData: existingUser.basicData || {},
-            savedJobs: existingUser.savedJobs || [],
-            isco_groups: existingUser.isco_groups || [],
-          });
-        }
-      }
-
-      // Create new user
+      console.log(
+        "Datos validados correctamente:",
+        JSON.stringify(userData, null, 2)
+      );
       const user = await storage.createUser(userData);
-      console.log('✅ [DEBUG] Created new user:', user.id);
       
       // Return the full user data
       res.status(201).json({
@@ -398,17 +372,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isco_groups: user.isco_groups || [],
       });
     } catch (error) {
-      console.error('❌ [DEBUG] Error creating user:', error);
+      console.error("Error al crear usuario:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({
-          error: "Invalid user data",
+          error: "Datos de usuario inválidos",
           details: error.format(),
         });
       }
-      // More details for database errors (like duplicates)
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+      // Más detalles para errores de base de datos (como duplicados)
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
       res.status(400).json({
-        error: "Failed to create user",
+        error: "No se pudo crear el usuario",
         message: errorMessage,
       });
     }
@@ -451,16 +426,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get jobs
   app.get("/api/jobs", async (req: Request, res: Response) => {
     try {
-      console.log('🔍 Jobs API called with query params:', {
-        sessionId: req.query.sessionId,
-        userId: req.query.userId,
-        limit: req.query.limit,
-        offset: req.query.offset,
-        isco_groups: req.query.isco_groups,
-        excludeIds: req.query.excludeIds,
-        orderBy: req.query.orderBy
-      });
-
       const sessionId = req.query.sessionId as string;
       const userId = req.query.userId
         ? parseInt(req.query.userId as string)
@@ -480,10 +445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add ISCO group filtering if provided
       if (req.query.isco_groups) {
-        const iscoGroupsStr = req.query.isco_groups as string;
-        console.log('📊 Received ISCO groups from query:', iscoGroupsStr);
-        options.isco_groups = iscoGroupsStr.split(',').map(g => g.trim());
-        console.log('🔄 Processed ISCO groups:', options.isco_groups);
+        options.isco_groups = (req.query.isco_groups as string).split(',');
       }
 
       let jobs;
@@ -491,10 +453,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // User is logged in, get user profile for filtering
         const user = await storage.getUser(userId);
         if (user) {
-          // Only use user's ISCO groups if no ISCO groups were provided in the query
-          if (!options.isco_groups) {
-            options.isco_groups = user.isco_groups || [];
-          }
+          options.isco_groups = user.isco_groups || [];
           options.occupations = user.occupations || [];
         }
         jobs = await storage.getJobs(options);
@@ -626,22 +585,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // Get user profile by Firebase ID
-  app.get('/api/users/:firebaseId/profile', async (req: Request, res: Response) => {
+  // Get user profile data
+  app.get("/api/users/:firebaseId/profile", async (req: Request, res: Response) => {
     try {
-      const { firebaseId } = req.params;
-      console.log('🔍 [DEBUG] Fetching profile for Firebase ID:', firebaseId);
-      
+      const firebaseId = req.params.firebaseId;
       const user = await storage.getUserByFirebaseId(firebaseId);
-      
+
       if (!user) {
-        console.log('❌ [DEBUG] User not found for Firebase ID:', firebaseId);
         return res.status(404).json({ error: "User not found" });
       }
 
       // Get user occupations to enrich profile data
       const userOccupations = await storage.getUserOccupationsByUserId(user.id);
-      console.log('✅ [DEBUG] Found user occupations:', userOccupations.length);
 
       // Format user profile data
       const profile = {
@@ -655,17 +610,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         longitude: user.longitude,
         profileCompleted: Boolean(user.fullName && user.cvPath),
         occupations: userOccupations,
-        isco_groups: user.isco_groups || [],
-        workPreferences: user.workPreferences,
-        education: user.education,
-        languages: user.languages,
-        skills: user.skills
+        // Additional profile fields from JSON fields
+        workPreferences: user.workPreferences || {},
+        education: user.education || {},
+        languages: user.languages || {},
+        skills: user.skills || [],
+        basicData: user.basicData || {},
+        savedJobs: user.savedJobs || [],
       };
 
-      console.log('✅ [DEBUG] Returning profile for user:', user.id);
       res.json(profile);
     } catch (error) {
-      console.error('❌ [DEBUG] Error getting user profile:', error);
+      console.error("Error getting user profile:", error);
       res.status(500).json({ error: "Failed to get user profile" });
     }
   });
@@ -906,17 +862,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Start the job sync scheduler to run in the background
   startJobSyncScheduler();
-
-  // Add username check route
-  app.get('/api/users/check-username/:username', async (req: Request, res: Response) => {
-    try {
-      const { username } = req.params;
-      const user = await storage.getUserByUsername(username);
-      res.json({ available: !user });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to check username" });
-    }
-  });
 
   const httpServer = createServer(app);
   return httpServer;
