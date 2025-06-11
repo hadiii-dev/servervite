@@ -22,54 +22,19 @@ export const getJobs = async (
   next: NextFunction
 ) => {
   try {
-    console.log('🎯 [DEBUG] Job controller received request with query:', JSON.stringify(req.query, null, 2));
-
-    // Extract all query parameters
-    const options: any = {
-      limit: req.query.limit ? parseInt(req.query.limit as string) : 20,
-      offset: req.query.offset ? parseInt(req.query.offset as string) : 0,
-      excludeIds: req.query.excludeIds 
-        ? (req.query.excludeIds as string).split(",").map((id) => parseInt(id.trim()))
-        : [],
-      orderBy: (req.query.orderBy as string) || "recent"
-    };
-
-    // Add ISCO groups if provided
-    if (req.query.isco_groups) {
-      const iscoGroupsStr = req.query.isco_groups as string;
-      console.log('📊 [DEBUG] Controller received ISCO groups:', JSON.stringify({
-        raw: iscoGroupsStr,
-        type: typeof iscoGroupsStr
-      }, null, 2));
-      options.isco_groups = iscoGroupsStr.split(',').map(g => g.trim());
-      console.log('🔄 [DEBUG] Controller processed ISCO groups:', JSON.stringify({
-        processed: options.isco_groups,
-        type: typeof options.isco_groups,
-        isArray: Array.isArray(options.isco_groups),
-        length: options.isco_groups.length
-      }, null, 2));
+    // Extraer IDs a excluir si existen
+    let excludeIds: number[] = [];
+    if (req.query.excludeIds) {
+      const excludeIdsParam = req.query.excludeIds as string;
+      excludeIds = excludeIdsParam.split(",").map((id) => parseInt(id.trim()));
     }
 
-    // Add user ID if provided
-    if (req.query.userId) {
-      options.userId = parseInt(req.query.userId as string);
-    }
+    // Obtener todos los trabajos
+    const jobs = await jobService.getJobs({ excludeIds });
 
-    // Get jobs with all options
-    console.log('🚀 [DEBUG] Controller calling service with options:', JSON.stringify(options, null, 2));
-    const jobs = await jobService.getJobs(options);
-
-    console.log("✅ [DEBUG] Controller returning jobs:", JSON.stringify({
-      count: jobs.length,
-      firstJob: jobs[0] ? {
-        id: jobs[0].id,
-        title: jobs[0].title,
-        isco_groups: jobs[0].isco_groups
-      } : null
-    }, null, 2));
+    console.log("🚀 ~ getJobs ~ jobs:", jobs);
     res.json(jobs);
   } catch (error) {
-    console.error('❌ [DEBUG] Controller error:', error);
     next(error);
   }
 };
