@@ -369,6 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skills: user.skills || [],
         basicData: user.basicData || {},
         savedJobs: user.savedJobs || [],
+        isco_groups: user.isco_groups || [],
       });
     } catch (error) {
       console.error("Error al crear usuario:", error);
