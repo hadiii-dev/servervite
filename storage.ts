@@ -310,40 +310,16 @@ export class DatabaseStorage implements IStorage {
     isco_groups?: string[];
     occupations?: string[];
   }): Promise<Job[]> {
-    console.log('🏢 [DEBUG] Storage.getJobs called with options:', JSON.stringify({
-      limit: options?.limit,
-      offset: options?.offset,
-      excludeIds: options?.excludeIds,
-      category: options?.category,
-      isRemote: options?.isRemote,
-      orderBy: options?.orderBy,
-      skills: options?.skills,
-      location: options?.location,
-      isco_groups: options?.isco_groups,
-      occupations: options?.occupations
-    }, null, 2));
-
-    const {
-      limit = 20,
-      offset = 0,
-      excludeIds = [],
-      category,
-      isRemote,
-      orderBy = "recent",
-      skills = [],
-      location,
-      isco_groups = [],
-      occupations = [],
-    } = options || {};
-
-    // Filtro por ISCO groups si se especifica
-    console.log('🎯 [DEBUG] ISCO groups received in storage:', JSON.stringify({
-      isco_groups,
-      type: typeof isco_groups,
-      isArray: Array.isArray(isco_groups),
-      length: isco_groups?.length,
-      raw: isco_groups
-    }, null, 2));
+    const limit = options?.limit ?? 20;
+    const offset = options?.offset ?? 0;
+    const excludeIds = options?.excludeIds ?? [];
+    const category = options?.category;
+    const isRemote = options?.isRemote;
+    const orderBy = options?.orderBy || "recent"; // 'recent', 'random'
+    const skills = options?.skills || [];
+    const location = options?.location;
+    const iscoGroups = options?.isco_groups || [];
+    const occupations = options?.occupations || [];
 
     try {
       // Construimos una única consulta para evitar problemas de tipado con Drizzle
@@ -422,27 +398,32 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Filtro por ISCO groups si se especifica
-      if (isco_groups?.length > 0) {
+      // if (iscoGroups.length > 0) {
+      //   whereConditions.push(sql`${jobs.isco_groups} && ${iscoGroups}`); // array overlap
+      // }
+
+      if (iscoGroups.length > 0) {
         // Split the comma-separated string into an array if it's a string
-        const iscoGroupsArray = Array.isArray(isco_groups) 
-          ? isco_groups 
-          : (isco_groups as string).split(',').map((g: string) => g.trim());
+        const iscoGroupsArray = Array.isArray(iscoGroups) 
+          ? iscoGroups 
+          : (iscoGroups as string).split(',').map((g: string) => g.trim());
         
-        console.log('🔍 [DEBUG] Filtering by ISCO groups:', JSON.stringify({
-          isco_groups,
+        console.log('Filtering by ISCO groups:', {
+          iscoGroups,
           iscoGroupsArray,
           query: `isco_groups && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
-        }, null, 2));
+        });
         
         whereConditions.push(
           sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
         );
-
-        // Log the final SQL query
-        console.log('📊 [DEBUG] Final SQL query with ISCO groups:', JSON.stringify({
-          whereConditions: whereConditions.length,
-          iscoGroupsArray
-        }, null, 2));
+        // whereConditions.push(
+        //   sql.raw(
+        //     `${jobs.isco_groups.sql} && ARRAY[${iscoGroups
+        //       .map((g) => `'${g}'`)
+        //       .join(",")}]::text[]`
+        //   )
+        // );
       }
 
       // Filtro por occupations si se especifica
@@ -465,16 +446,16 @@ export class DatabaseStorage implements IStorage {
               .limit(limit);
 
             // Log the results for debugging
-            console.log('✅ [DEBUG] Query results:', JSON.stringify({
+            console.log('Query results:', {
               totalResults: result.length,
               firstResult: result[0] ? {
                 id: result[0].id,
                 title: result[0].title,
                 isco_groups: result[0].isco_groups
               } : null
-            }, null, 2));
+            });
           } catch (error) {
-            console.error('❌ [DEBUG] Error executing query:', error);
+            console.error('Error executing query:', error);
             throw error;
           }
         } else {
