@@ -35,16 +35,7 @@ export class JobService {
     limit?: number;
     offset?: number;
     excludeIds?: number[];
-    category?: string;
-    isRemote?: boolean;
-    orderBy?: string;
-    skills?: string[];
-    location?: string;
-    isco_groups?: string[];
-    occupations?: string[];
-    userId?: number;
   }): Promise<Job[]> {
-    console.log('🎯 Job service received options:', options);
     return storage.getJobs(options);
   }
 
