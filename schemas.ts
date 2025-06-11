@@ -332,7 +332,18 @@ export const insertUserSchema = createInsertSchema(users)
   .extend({
     firebaseId: z.string().optional(),
     firebaseToken: z.string().optional(),
-  });
+    username: z.string().optional(),
+    password: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // Either Firebase ID or username/password must be provided
+      return (data.firebaseId && data.firebaseToken) || (data.username && data.password);
+    },
+    {
+      message: "Either Firebase ID and token or username and password must be provided",
+    }
+  );
 
 export const insertOccupationSchema = createInsertSchema(occupations).omit({
   id: true,
