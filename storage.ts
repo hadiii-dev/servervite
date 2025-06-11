@@ -310,7 +310,7 @@ export class DatabaseStorage implements IStorage {
     isco_groups?: string[];
     occupations?: string[];
   }): Promise<Job[]> {
-    console.log('🏢 Storage.getJobs called with options:', {
+    console.log('🏢 [DEBUG] Storage.getJobs called with options:', JSON.stringify({
       limit: options?.limit,
       offset: options?.offset,
       excludeIds: options?.excludeIds,
@@ -321,7 +321,7 @@ export class DatabaseStorage implements IStorage {
       location: options?.location,
       isco_groups: options?.isco_groups,
       occupations: options?.occupations
-    });
+    }, null, 2));
 
     const {
       limit = 20,
@@ -337,13 +337,13 @@ export class DatabaseStorage implements IStorage {
     } = options || {};
 
     // Filtro por ISCO groups si se especifica
-    console.log('🎯 ISCO groups received in storage:', {
+    console.log('🎯 [DEBUG] ISCO groups received in storage:', JSON.stringify({
       isco_groups,
       type: typeof isco_groups,
       isArray: Array.isArray(isco_groups),
       length: isco_groups?.length,
       raw: isco_groups
-    });
+    }, null, 2));
 
     try {
       // Construimos una única consulta para evitar problemas de tipado con Drizzle
@@ -428,21 +428,21 @@ export class DatabaseStorage implements IStorage {
           ? isco_groups 
           : (isco_groups as string).split(',').map((g: string) => g.trim());
         
-        console.log('🔍 Filtering by ISCO groups:', {
+        console.log('🔍 [DEBUG] Filtering by ISCO groups:', JSON.stringify({
           isco_groups,
           iscoGroupsArray,
           query: `isco_groups && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
-        });
+        }, null, 2));
         
         whereConditions.push(
           sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
         );
 
         // Log the final SQL query
-        console.log('📊 Final SQL query with ISCO groups:', {
+        console.log('📊 [DEBUG] Final SQL query with ISCO groups:', JSON.stringify({
           whereConditions: whereConditions.length,
           iscoGroupsArray
-        });
+        }, null, 2));
       }
 
       // Filtro por occupations si se especifica
@@ -465,16 +465,16 @@ export class DatabaseStorage implements IStorage {
               .limit(limit);
 
             // Log the results for debugging
-            console.log('Query results:', {
+            console.log('✅ [DEBUG] Query results:', JSON.stringify({
               totalResults: result.length,
               firstResult: result[0] ? {
                 id: result[0].id,
                 title: result[0].title,
                 isco_groups: result[0].isco_groups
               } : null
-            });
+            }, null, 2));
           } catch (error) {
-            console.error('Error executing query:', error);
+            console.error('❌ [DEBUG] Error executing query:', error);
             throw error;
           }
         } else {
