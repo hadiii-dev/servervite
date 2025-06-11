@@ -310,16 +310,40 @@ export class DatabaseStorage implements IStorage {
     isco_groups?: string[];
     occupations?: string[];
   }): Promise<Job[]> {
-    const limit = options?.limit ?? 20;
-    const offset = options?.offset ?? 0;
-    const excludeIds = options?.excludeIds ?? [];
-    const category = options?.category;
-    const isRemote = options?.isRemote;
-    const orderBy = options?.orderBy || "recent"; // 'recent', 'random'
-    const skills = options?.skills || [];
-    const location = options?.location;
-    const iscoGroups = options?.isco_groups || [];
-    const occupations = options?.occupations || [];
+    console.log('🏢 Storage.getJobs called with options:', {
+      limit: options?.limit,
+      offset: options?.offset,
+      excludeIds: options?.excludeIds,
+      category: options?.category,
+      isRemote: options?.isRemote,
+      orderBy: options?.orderBy,
+      skills: options?.skills,
+      location: options?.location,
+      isco_groups: options?.isco_groups,
+      occupations: options?.occupations
+    });
+
+    const {
+      limit = 20,
+      offset = 0,
+      excludeIds = [],
+      category,
+      isRemote,
+      orderBy = "recent",
+      skills = [],
+      location,
+      isco_groups = [],
+      occupations = [],
+    } = options || {};
+
+    // Filtro por ISCO groups si se especifica
+    console.log('🎯 ISCO groups received in storage:', {
+      isco_groups,
+      type: typeof isco_groups,
+      isArray: Array.isArray(isco_groups),
+      length: isco_groups?.length,
+      raw: isco_groups
+    });
 
     try {
       // Construimos una única consulta para evitar problemas de tipado con Drizzle
@@ -398,22 +422,14 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Filtro por ISCO groups si se especifica
-      console.log('ISCO groups received in storage:', {
-        iscoGroups,
-        type: typeof iscoGroups,
-        isArray: Array.isArray(iscoGroups),
-        length: iscoGroups?.length,
-        raw: iscoGroups
-      });
-
-      if (iscoGroups?.length > 0) {
+      if (isco_groups?.length > 0) {
         // Split the comma-separated string into an array if it's a string
-        const iscoGroupsArray = Array.isArray(iscoGroups) 
-          ? iscoGroups 
-          : (iscoGroups as string).split(',').map((g: string) => g.trim());
+        const iscoGroupsArray = Array.isArray(isco_groups) 
+          ? isco_groups 
+          : (isco_groups as string).split(',').map((g: string) => g.trim());
         
-        console.log('Filtering by ISCO groups:', {
-          iscoGroups,
+        console.log('🔍 Filtering by ISCO groups:', {
+          isco_groups,
           iscoGroupsArray,
           query: `isco_groups && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
         });
@@ -423,7 +439,7 @@ export class DatabaseStorage implements IStorage {
         );
 
         // Log the final SQL query
-        console.log('Final SQL query with ISCO groups:', {
+        console.log('📊 Final SQL query with ISCO groups:', {
           whereConditions: whereConditions.length,
           iscoGroupsArray
         });
