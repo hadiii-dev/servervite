@@ -59,6 +59,9 @@ import { sql } from "drizzle-orm";
 // });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Import and use the job routes
+  const jobRoutes = require('./routes/job.routes').default;
+  app.use('/api', jobRoutes);
 
   app.get('/api/data/isco-groups', async (req, res) => {
     try {
@@ -182,11 +185,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
-
-
-
-
   // Check server health
   app.get("/api/health", async (req: Request, res: Response) => {
     res.json({ status: "ok" });
@@ -242,6 +240,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to retrieve user" });
     }
   });
+
   // Session management
   app.post("/api/session", async (req: Request, res: Response) => {
     try {
@@ -602,11 +601,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // Get user profile data
-  app.get("/api/users/:firebaseId/profile", async (req: Request, res: Response) => {
+  app.get('/api/users/:firebaseId/profile', async (req: Request, res: Response) => {
     try {
-      const firebaseId = req.params.firebaseId;
+      const { firebaseId } = req.params;
       const user = await storage.getUserByFirebaseId(firebaseId);
-
+      
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -626,18 +625,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         longitude: user.longitude,
         profileCompleted: Boolean(user.fullName && user.cvPath),
         occupations: userOccupations,
-        // Additional profile fields from JSON fields
-        workPreferences: user.workPreferences || {},
-        education: user.education || {},
-        languages: user.languages || {},
-        skills: user.skills || [],
-        basicData: user.basicData || {},
-        savedJobs: user.savedJobs || [],
+        isco_groups: user.isco_groups || [],
+        workPreferences: user.workPreferences,
+        education: user.education,
+        languages: user.languages,
+        skills: user.skills
       };
 
       res.json(profile);
     } catch (error) {
-      console.error("Error getting user profile:", error);
       res.status(500).json({ error: "Failed to get user profile" });
     }
   });
@@ -878,6 +874,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Start the job sync scheduler to run in the background
   startJobSyncScheduler();
+
+  // Add username check route
+  app.get('/api/users/check-username/:username', async (req: Request, res: Response) => {
+    try {
+      const { username } = req.params;
+      const user = await storage.getUserByUsername(username);
+      res.json({ available: !user });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to check username" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
