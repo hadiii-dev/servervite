@@ -398,11 +398,15 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Filtro por ISCO groups si se especifica
-      // if (iscoGroups.length > 0) {
-      //   whereConditions.push(sql`${jobs.isco_groups} && ${iscoGroups}`); // array overlap
-      // }
+      console.log('ISCO groups received in storage:', {
+        iscoGroups,
+        type: typeof iscoGroups,
+        isArray: Array.isArray(iscoGroups),
+        length: iscoGroups?.length,
+        raw: iscoGroups
+      });
 
-      if (iscoGroups.length > 0) {
+      if (iscoGroups?.length > 0) {
         // Split the comma-separated string into an array if it's a string
         const iscoGroupsArray = Array.isArray(iscoGroups) 
           ? iscoGroups 
@@ -417,13 +421,12 @@ export class DatabaseStorage implements IStorage {
         whereConditions.push(
           sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
         );
-        // whereConditions.push(
-        //   sql.raw(
-        //     `${jobs.isco_groups.sql} && ARRAY[${iscoGroups
-        //       .map((g) => `'${g}'`)
-        //       .join(",")}]::text[]`
-        //   )
-        // );
+
+        // Log the final SQL query
+        console.log('Final SQL query with ISCO groups:', {
+          whereConditions: whereConditions.length,
+          iscoGroupsArray
+        });
       }
 
       // Filtro por occupations si se especifica
