@@ -445,7 +445,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Add ISCO group filtering if provided
       if (req.query.isco_groups) {
-        options.isco_groups = (req.query.isco_groups as string).split(',');
+        const iscoGroupsStr = req.query.isco_groups as string;
+        console.log('Received ISCO groups from query:', iscoGroupsStr);
+        options.isco_groups = iscoGroupsStr.split(',').map(g => g.trim());
+        console.log('Processed ISCO groups:', options.isco_groups);
       }
 
       let jobs;
@@ -453,7 +456,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // User is logged in, get user profile for filtering
         const user = await storage.getUser(userId);
         if (user) {
-          options.isco_groups = user.isco_groups || [];
+          // Only use user's ISCO groups if no ISCO groups were provided in the query
+          if (!options.isco_groups) {
+            options.isco_groups = user.isco_groups || [];
+          }
           options.occupations = user.occupations || [];
         }
         jobs = await storage.getJobs(options);
