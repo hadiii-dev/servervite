@@ -22,7 +22,7 @@ export const getJobs = async (
   next: NextFunction
 ) => {
   try {
-    console.log('🎯 Job controller received request with query:', req.query);
+    console.log('🎯 [DEBUG] Job controller received request with query:', JSON.stringify(req.query, null, 2));
 
     // Extract all query parameters
     const options: any = {
@@ -37,9 +37,17 @@ export const getJobs = async (
     // Add ISCO groups if provided
     if (req.query.isco_groups) {
       const iscoGroupsStr = req.query.isco_groups as string;
-      console.log('📊 Controller received ISCO groups:', iscoGroupsStr);
+      console.log('📊 [DEBUG] Controller received ISCO groups:', JSON.stringify({
+        raw: iscoGroupsStr,
+        type: typeof iscoGroupsStr
+      }, null, 2));
       options.isco_groups = iscoGroupsStr.split(',').map(g => g.trim());
-      console.log('🔄 Controller processed ISCO groups:', options.isco_groups);
+      console.log('🔄 [DEBUG] Controller processed ISCO groups:', JSON.stringify({
+        processed: options.isco_groups,
+        type: typeof options.isco_groups,
+        isArray: Array.isArray(options.isco_groups),
+        length: options.isco_groups.length
+      }, null, 2));
     }
 
     // Add user ID if provided
@@ -48,11 +56,20 @@ export const getJobs = async (
     }
 
     // Get jobs with all options
+    console.log('🚀 [DEBUG] Controller calling service with options:', JSON.stringify(options, null, 2));
     const jobs = await jobService.getJobs(options);
 
-    console.log("🚀 Controller returning jobs:", jobs.length);
+    console.log("✅ [DEBUG] Controller returning jobs:", JSON.stringify({
+      count: jobs.length,
+      firstJob: jobs[0] ? {
+        id: jobs[0].id,
+        title: jobs[0].title,
+        isco_groups: jobs[0].isco_groups
+      } : null
+    }, null, 2));
     res.json(jobs);
   } catch (error) {
+    console.error('❌ [DEBUG] Controller error:', error);
     next(error);
   }
 };
