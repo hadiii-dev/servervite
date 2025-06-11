@@ -398,16 +398,24 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Filtro por ISCO groups si se especifica
+      // if (iscoGroups.length > 0) {
+      //   whereConditions.push(sql`${jobs.isco_groups} && ${iscoGroups}`); // array overlap
+      // }
+
       if (iscoGroups.length > 0) {
-        // Convert each ISCO group to a string and create a PostgreSQL array
-        const iscoGroupsArray = iscoGroups.map(g => `'${g}'`).join(',');
+        // Split the comma-separated string into an array if it's a string
+        const iscoGroupsArray = Array.isArray(iscoGroups) 
+          ? iscoGroups 
+          : (iscoGroups as string).split(',').map((g: string) => g.trim());
+        
         console.log('Filtering by ISCO groups:', {
           iscoGroups,
           iscoGroupsArray,
-          query: `isco_groups && ARRAY[${iscoGroupsArray}]::text[]`
+          query: `isco_groups && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
         });
+        
         whereConditions.push(
-          sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray}]::text[]`
+          sql`${jobs.isco_groups} && ARRAY[${iscoGroupsArray.map((g: string) => `'${g}'`).join(',')}]::text[]`
         );
         // whereConditions.push(
         //   sql.raw(
