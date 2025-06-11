@@ -426,6 +426,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get jobs
   app.get("/api/jobs", async (req: Request, res: Response) => {
     try {
+      console.log('🔍 Jobs API called with query params:', {
+        sessionId: req.query.sessionId,
+        userId: req.query.userId,
+        limit: req.query.limit,
+        offset: req.query.offset,
+        isco_groups: req.query.isco_groups,
+        excludeIds: req.query.excludeIds,
+        orderBy: req.query.orderBy
+      });
+
       const sessionId = req.query.sessionId as string;
       const userId = req.query.userId
         ? parseInt(req.query.userId as string)
@@ -446,9 +456,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Add ISCO group filtering if provided
       if (req.query.isco_groups) {
         const iscoGroupsStr = req.query.isco_groups as string;
-        console.log('Received ISCO groups from query:', iscoGroupsStr);
+        console.log('📊 Received ISCO groups from query:', iscoGroupsStr);
         options.isco_groups = iscoGroupsStr.split(',').map(g => g.trim());
-        console.log('Processed ISCO groups:', options.isco_groups);
+        console.log('🔄 Processed ISCO groups:', options.isco_groups);
       }
 
       let jobs;
